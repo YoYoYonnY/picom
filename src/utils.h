@@ -36,6 +36,8 @@ safe_isnan(double a) {
 #define CASESTRRET(s)                                                                    \
 	case s: return #s
 
+#define UNUSED(x) ((void)(x))
+
 /// Same as assert(false), but make sure we abort _even in release builds_.
 /// Silence compiler warning caused by release builds making some code paths reachable.
 #define BUG()                                                                            \
@@ -50,7 +52,7 @@ safe_isnan(double a) {
 		auto _ = (expr);                                                         \
 		/* make sure the original expression appears in the assertion message */ \
 		assert((CHECK_EXPR(expr), _));                                           \
-		(void)_;                                                                 \
+		UNUSED(_);                                                               \
 	} while (0)
 
 /// Asserts that var is within [lower, upper]. Silence compiler warning about expressions
