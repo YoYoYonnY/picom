@@ -1285,7 +1285,7 @@ struct win *fill_win(session_t *ps, struct win *w) {
 	}
 
 	// Allocate and initialize the new win structure
-	auto new_internal = cmalloc(struct managed_win_internal);
+	auto new_internal = cmalloc(struct managed_win);
 	auto new = (struct managed_win *)new_internal;
 	new_internal->pending_updates = 0;
 
@@ -1326,6 +1326,8 @@ struct win *fill_win(session_t *ps, struct win *w) {
 		cdbus_ev_win_added(ps, &new->base);
 	}
 #endif
+	module_emit(MODEV_WIN_ADDED, ps, &new->base);
+
 	return &new->base;
 }
 
@@ -1488,6 +1490,12 @@ static void win_on_focus_change(session_t *ps, struct managed_win *w) {
 			cdbus_ev_win_focusout(ps, &w->base);
 	}
 #endif
+
+	if (win_is_focused_real(ps, w)) {
+		module_emit(MODEV_WIN_FOCUSIN, ps, &w->base);
+	} else {
+		module_emit(MODEV_WIN_FOCUSOUT, ps, &w->base);
+	}
 }
 
 /**
@@ -1900,6 +1908,7 @@ bool destroy_win_start(session_t *ps, struct win *w) {
 		cdbus_ev_win_destroyed(ps, w);
 	}
 #endif
+	module_emit(MODEV_WIN_DESTROYED, ps, w);
 
 	if (!ps->redirected) {
 		// Skip transition if we are not rendering
@@ -1954,6 +1963,7 @@ void unmap_win_start(session_t *ps, struct managed_win *w) {
 		cdbus_ev_win_unmapped(ps, &w->base);
 	}
 #endif
+	module_emit(MODEV_WIN_UNMAPPED, ps, &w->base);
 
 	if (!ps->redirected) {
 		CHECK(!win_skip_fading(ps, w));
@@ -2151,6 +2161,8 @@ void map_win_start(session_t *ps, struct managed_win *w) {
 		cdbus_ev_win_mapped(ps, &w->base);
 	}
 #endif
+
+	module_emit(MODEV_WIN_MAPPED, ps, &w->base);
 
 	if (!ps->redirected) {
 		CHECK(!win_skip_fading(ps, w));

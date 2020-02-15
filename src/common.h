@@ -125,6 +125,8 @@ typedef struct _latom {
 	struct _latom *next;
 } latom_t;
 
+typedef struct module module_t;
+
 /// Structure containing all necessary data for a session.
 typedef struct session {
 	// === Event handlers ===
@@ -370,6 +372,11 @@ typedef struct session {
 #endif
 
 	int (*vsync_wait)(session_t *);
+
+	/// Number of loaded modules
+	size_t num_modules;
+	/// List of loaded modules
+	module_t *modules;
 } session_t;
 
 /// Enumeration for window event hints.
@@ -523,3 +530,7 @@ static inline void wintype_arr_enable(bool arr[]) {
 		arr[i] = true;
 	}
 }
+
+// Load module.h as late as possible.
+// Effectively, this #include's "common.h" in module.h
+#include "module.h"

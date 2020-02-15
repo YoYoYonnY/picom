@@ -9,7 +9,8 @@ base_deps = [
 
 srcs = [ files('picom.c', 'win.c', 'c2.c', 'x.c', 'config.c', 'vsync.c', 'utils.c',
                'diagnostic.c', 'string_utils.c', 'render.c', 'kernel.c', 'log.c',
-               'options.c', 'event.c', 'cache.c', 'atom.c', 'file_watch.c') ]
+               'options.c', 'event.c', 'cache.c', 'atom.c', 'file_watch.c',
+               'module.c') ]
 picom_inc = include_directories('.')
 
 cflags = []
@@ -87,6 +88,7 @@ elif host_system == 'freebsd' or host_system == 'netbsd' or
 endif
 
 subdir('backend')
+subdir('module')
 
 picom = executable('picom', srcs, c_args: cflags,
   dependencies: [ base_deps, deps, test_h_dep ],

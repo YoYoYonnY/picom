@@ -18,9 +18,15 @@
 /// Generate a list containing 31, 30, ..., 0, in binary
 #define RIOTA32(x) RIOTA16(x##1), RIOTA16(x##0)
 
-#define CONCAT2(a, b) a##b
-#define CONCAT1(a, b) CONCAT2(a, b)
-#define CONCAT(a, b) CONCAT1(a, b)
+#define CONCAT2_INDIRECT(a, b) a##b
+#define CONCAT2(a, b) CONCAT2_INDIRECT(a, b)
+#define CONCAT(a, b) CONCAT2(a, b)
+
+#define CONCAT3_INDIRECT(a, b, c) a##b##c
+#define CONCAT3(a, b, c) CONCAT3_INDIRECT(a, b, c)
+
+#define CONCAT4_INDIRECT(a, b, c, d) a##b##c##d
+#define CONCAT4(a, b, c, d) CONCAT4_INDIRECT(a, b, c, d)
 
 #define _ARGS_HEAD(head, ...) head
 #define _ARGS_SKIP4(_1, _2, _3, _4, ...) __VA_ARGS__

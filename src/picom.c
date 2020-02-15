@@ -1646,6 +1646,8 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 #ifdef CONFIG_DBUS
 	    .dbus_data = NULL,
 #endif
+	    .num_modules = 0,
+	    .modules = NULL,
 	};
 
 	auto stderr_logger = stderr_logger_new();
@@ -2056,6 +2058,8 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 #endif
 	}
 
+	module_emit(MODEV_EARLY_INIT, ps, NULL);
+
 	e = xcb_request_check(ps->c, xcb_grab_server_checked(ps->c));
 	if (e) {
 		log_fatal("Failed to grab X server");
@@ -2107,6 +2111,7 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 		// Remove the stderr logger if we will fork
 		log_remove_target_tls(stderr_logger);
 	}
+	module_emit(MODEV_INIT, ps, NULL);
 	return ps;
 err:
 	free(ps);
@@ -2140,6 +2145,8 @@ static void session_destroy(session_t *ps) {
 		cdbus_destroy(ps);
 	}
 #endif
+
+	module_emit(MODEV_EXIT, ps, NULL);
 
 	// Free window linked list
 
