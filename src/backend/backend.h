@@ -98,7 +98,7 @@ struct backend_operations {
 	// ===========      Rendering      ============
 
 	// NOTE: general idea about reg_paint/reg_op vs reg_visible is that reg_visible is
-	// merely a hint. Ignoring reg_visible entirely don't affect the correctness of
+	// merely a hint. Ignoring reg_visible entirely doesn't affect the correctness of
 	// the operation performed. OTOH reg_paint/reg_op is part of the parameters of the
 	// operation, and must be honored in order to complete the operation correctly.
 
