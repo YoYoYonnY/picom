@@ -64,12 +64,6 @@ if get_option('opengl')
 	srcs += [ 'opengl.c' ]
 endif
 
-if get_option('dbus')
-	cflags += ['-DCONFIG_DBUS']
-	deps += [dependency('dbus-1', required: true)]
-	srcs += [ 'dbus.c' ]
-endif
-
 if get_option('xrescheck')
 	cflags += ['-DDEBUG_XRC']
 	srcs += [ 'xrescheck.c' ]

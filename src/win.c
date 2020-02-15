@@ -32,12 +32,8 @@
 #include "utils.h"
 #include "x.h"
 
-#ifdef CONFIG_DBUS
-#include "dbus.h"
-#endif
-
-#ifdef CONFIG_OPENGL
 // TODO remove this include
+#ifdef CONFIG_OPENGL
 #include "opengl.h"
 #endif
 
@@ -1320,12 +1316,6 @@ struct win *fill_win(session_t *ps, struct win *w) {
 	assert(replaced == w);
 	free(w);
 
-#ifdef CONFIG_DBUS
-	// Send D-Bus signal
-	if (ps->o.dbus) {
-		cdbus_ev_win_added(ps, &new->base);
-	}
-#endif
 	module_emit(MODEV_WIN_ADDED, ps, &new->base);
 
 	return &new->base;
@@ -1480,16 +1470,6 @@ static void win_on_focus_change(session_t *ps, struct managed_win *w) {
 
 	// Update everything related to conditions
 	win_on_factor_change(ps, w);
-
-#ifdef CONFIG_DBUS
-	// Send D-Bus signal
-	if (ps->o.dbus) {
-		if (win_is_focused_real(ps, w))
-			cdbus_ev_win_focusin(ps, &w->base);
-		else
-			cdbus_ev_win_focusout(ps, &w->base);
-	}
-#endif
 
 	if (win_is_focused_real(ps, w)) {
 		module_emit(MODEV_WIN_FOCUSIN, ps, &w->base);
@@ -1902,12 +1882,6 @@ bool destroy_win_start(session_t *ps, struct win *w) {
 	}
 
 	// don't need win_ev_stop because the window is gone anyway
-#ifdef CONFIG_DBUS
-	// Send D-Bus signal
-	if (ps->o.dbus) {
-		cdbus_ev_win_destroyed(ps, w);
-	}
-#endif
 	module_emit(MODEV_WIN_DESTROYED, ps, w);
 
 	if (!ps->redirected) {
@@ -1957,12 +1931,6 @@ void unmap_win_start(session_t *ps, struct managed_win *w) {
 	// don't care about properties anymore
 	win_ev_stop(ps, &w->base);
 
-#ifdef CONFIG_DBUS
-	// Send D-Bus signal
-	if (ps->o.dbus) {
-		cdbus_ev_win_unmapped(ps, &w->base);
-	}
-#endif
 	module_emit(MODEV_WIN_UNMAPPED, ps, &w->base);
 
 	if (!ps->redirected) {
@@ -2154,13 +2122,6 @@ void map_win_start(session_t *ps, struct managed_win *w) {
 	win_update_bounding_shape(ps, w);
 
 	assert((w->flags & WIN_FLAGS_IMAGES_STALE) == WIN_FLAGS_IMAGES_STALE);
-
-#ifdef CONFIG_DBUS
-	// Send D-Bus signal
-	if (ps->o.dbus) {
-		cdbus_ev_win_mapped(ps, &w->base);
-	}
-#endif
 
 	module_emit(MODEV_WIN_MAPPED, ps, &w->base);
 

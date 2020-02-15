@@ -49,9 +49,6 @@
 #include "utils.h"
 #include "win.h"
 #include "x.h"
-#ifdef CONFIG_DBUS
-#include "dbus.h"
-#endif
 #include "atom.h"
 #include "event.h"
 #include "file_watch.h"
@@ -1648,6 +1645,7 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 #endif
 	    .num_modules = 0,
 	    .modules = NULL,
+	    .reserved_windata = 0,
 	};
 
 	auto stderr_logger = stderr_logger_new();
@@ -1761,6 +1759,18 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	xcb_discard_reply(ps->c, xcb_xfixes_query_version(ps->c, XCB_XFIXES_MAJOR_VERSION,
 	                                                  XCB_XFIXES_MINOR_VERSION)
 	                             .sequence);
+
+	extern int loadmod_blur(session_t *ps, module_t *module, void *ud);
+	extern int loadmod_dbus(session_t *ps, module_t *module, void *ud);
+	extern int loadmod_fading(session_t *ps, module_t *module, void *ud);
+	extern int loadmod_shadow(session_t *ps, module_t *module, void *ud);
+	extern int loadmod_transparency(session_t *ps, module_t *module, void *ud);
+
+	module_load(ps, loadmod_blur, NULL);
+	module_load(ps, loadmod_dbus, NULL);
+	module_load(ps, loadmod_fading, NULL);
+	module_load(ps, loadmod_shadow, NULL);
+	module_load(ps, loadmod_transparency, NULL);
 
 	// Parse configuration file
 	win_option_mask_t winopt_mask[NUM_WINTYPES] = {{0}};
@@ -2044,20 +2054,8 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	ev_set_priority(&ps->event_check, EV_MINPRI);
 	ev_prepare_start(ps->loop, &ps->event_check);
 
-	// Initialize DBus. We need to do this early, because add_win might call dbus
-	// functions
-	if (ps->o.dbus) {
-#ifdef CONFIG_DBUS
-		cdbus_init(ps, DisplayString(ps->dpy));
-		if (!ps->dbus_data) {
-			ps->o.dbus = false;
-		}
-#else
-		log_fatal("DBus support not compiled in!");
-		exit(1);
-#endif
-	}
-
+	// Initializes DBus. We need to do this early, because add_win might
+	// call dbus functions
 	module_emit(MODEV_EARLY_INIT, ps, NULL);
 
 	e = xcb_request_check(ps->c, xcb_grab_server_checked(ps->c));
@@ -2137,14 +2135,6 @@ static void session_destroy(session_t *ps) {
 	// Stop listening to events on root window
 	xcb_change_window_attributes(ps->c, ps->root, XCB_CW_EVENT_MASK,
 	                             (const uint32_t[]){0});
-
-#ifdef CONFIG_DBUS
-	// Kill DBus connection
-	if (ps->o.dbus) {
-		assert(ps->dbus_data);
-		cdbus_destroy(ps);
-	}
-#endif
 
 	module_emit(MODEV_EXIT, ps, NULL);
 
