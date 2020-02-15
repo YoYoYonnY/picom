@@ -377,6 +377,8 @@ typedef struct session {
 	size_t num_modules;
 	/// List of loaded modules
 	module_t *modules;
+	/// Total reserved window data by all modules so far.
+	size_t reserved_windata;
 } session_t;
 
 /// Enumeration for window event hints.

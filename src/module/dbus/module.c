@@ -5,9 +5,10 @@
 #include "dbus.h"
 #endif
 
-static void MODULE(init)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(init)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 	UNUSED(ud);
 
 	if (ps->o.dbus) {
@@ -21,29 +22,38 @@ static void MODULE(init)(modev_t evid, session_t *ps, void *ud)
 		exit(1);
 #endif
 	}
+
+	return 0;
 }
 #ifdef CONFIG_DBUS
-static void MODULE(exit)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(exit)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 	UNUSED(ud);
 
 	if (ps->o.dbus) {
 		assert(ps->dbus_data);
 		cdbus_destroy(ps);
 	}
+
+	return 0;
 }
-static void MODULE(win_added)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(win_added)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 
 	if (ps->o.dbus) {
 		cdbus_ev_win_added(ps, ud);
 	}
+
+	return 0;
 }
-static void MODULE(win_focus)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(win_focus)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 
 	if (ps->o.dbus) {
 		if (evid == MODEV_WIN_FOCUSIN) {
@@ -52,30 +62,41 @@ static void MODULE(win_focus)(modev_t evid, session_t *ps, void *ud)
 			cdbus_ev_win_focusout(ps, ud);
 		}
 	}
+
+	return 0;
 }
-static void MODULE(win_destroyed)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(win_destroyed)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 
 	if (ps->o.dbus) {
 		cdbus_ev_win_destroyed(ps, ud);
 	}
+
+	return 0;
 }
-static void MODULE(win_unmapped)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(win_unmapped)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 
 	if (ps->o.dbus) {
 		cdbus_ev_win_unmapped(ps, ud);
 	}
+
+	return 0;
 }
-static void MODULE(win_mapped)(modev_t evid, session_t *ps, void *ud)
+static int MODULE(win_mapped)(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
+	UNUSED(module);
 
 	if (ps->o.dbus) {
 		cdbus_ev_win_mapped(ps, ud);
 	}
+
+	return 0;
 }
 #endif
 

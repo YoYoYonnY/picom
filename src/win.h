@@ -24,6 +24,8 @@
 #include "win_defs.h"
 #include "x.h"
 
+typedef int windata_cookie_t; // Used for modules
+
 struct backend_base;
 typedef struct session session_t;
 typedef struct _glx_texture glx_texture_t;
@@ -298,6 +300,8 @@ void win_update_wintype(session_t *ps, struct managed_win *w);
 void win_mark_client(session_t *ps, struct managed_win *w, xcb_window_t client);
 void win_unmark_client(session_t *ps, struct managed_win *w);
 bool win_get_class(session_t *ps, struct managed_win *w);
+
+void *win_get_windata(struct managed_win *w, windata_cookie_t cookie);
 
 /**
  * Calculate and return the opacity target of a window.

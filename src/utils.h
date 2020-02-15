@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -118,6 +119,14 @@ safe_isnan(double a) {
 		ASSERT_IN_RANGE(tmp, 0, max);                                            \
 		(uint32_t) tmp;                                                          \
 	})
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+static inline int unsigned_to_int_checked(uintmax_t val) {
+	return to_int_checked(val);
+}
+#pragma GCC diagnostic pop
 /**
  * Normalize an int value to a specific range.
  *
@@ -189,6 +198,9 @@ allocchk_(const char *func_name, const char *file, unsigned int line, void *ptr)
 
 /// @brief Wrapper of malloc().
 #define cmalloc(type) ((type *)allocchk(malloc(sizeof(type))))
+
+/// @brief Wrapper of malloc().
+#define cmallocx(type, extra) ((type *)allocchk(malloc(sizeof(type) + extra)))
 
 /// @brief Wrapper of malloc() that takes a size
 #define cvalloc(size) allocchk(malloc(size))

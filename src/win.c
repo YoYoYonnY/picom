@@ -45,6 +45,12 @@ struct managed_win_internal {
 
 	/// A bit mask of unhandled window updates
 	uint_fast32_t pending_updates;
+
+	/// Number of bytes of window data allocated by modules
+	size_t reserved_windata;
+
+	/// Additional window data allocated by modules (variable size)
+	char windata[1];
 };
 
 #define OPAQUE (0xffffffff)
@@ -933,6 +939,8 @@ void win_on_factor_change(session_t *ps, struct managed_win *w) {
 		w->unredir_if_possible_excluded =
 		    c2_match(ps, w, ps->o.unredir_if_possible_blacklist, NULL);
 	w->reg_ignore_valid = false;
+
+	module_emit(MODEV_WIN_CHANGED, ps, w);
 }
 
 /**
@@ -1281,9 +1289,10 @@ struct win *fill_win(session_t *ps, struct win *w) {
 	}
 
 	// Allocate and initialize the new win structure
-	auto new_internal = cmalloc(struct managed_win);
-	auto new = (struct managed_win *)new_internal;
-	new_internal->pending_updates = 0;
+	auto new_internal = cmallocx(struct managed_win_internal, ps->reserved_windata);
+ 	auto new = (struct managed_win *)new_internal;
+ 	new_internal->pending_updates = 0;
+	new_internal->reserved_windata = ps->reserved_windata;
 
 	// Fill structure
 	// We only need to initialize the part that are not initialized
@@ -1434,6 +1443,12 @@ bool win_get_class(session_t *ps, struct managed_win *w) {
 	          w->base.id, w->client_win, w->class_instance, w->class_general);
 
 	return true;
+}
+
+void *win_get_windata(struct managed_win *w, windata_cookie_t cookie)
+{
+	struct managed_win_internal *t = (struct managed_win_internal *)w;
+	return &t->windata[cookie];
 }
 
 /**
@@ -1742,6 +1757,8 @@ static void destroy_win_finish(session_t *ps, struct win *w) {
 			          w->id, mw->name);
 			ps->active_win = NULL;
 		}
+
+		module_emit(MODEV_WIN_DESTROYING, ps, w);
 
 		free_win_res(ps, mw);
 
