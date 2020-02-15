@@ -1,8 +1,8 @@
 #include <uthash.h>
 
-#include "compiler.h"
-#include "utils.h"
-#include "cache.h"
+#include "utils/compiler.h"
+#include "utils/utils.h"
+#include "utils/cache.h"
 
 struct cache_entry {
 	char *key;

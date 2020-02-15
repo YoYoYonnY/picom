@@ -7,20 +7,20 @@
 #include <xcb/render.h>
 #include <xcb/xcb.h>
 
-#include "uthash_extra.h"
-
 // FIXME shouldn't need this
 #ifdef CONFIG_OPENGL
 #include <GL/gl.h>
 #endif
 
+#include "utils/compiler.h"
+#include "utils/list.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "c2.h"
-#include "compiler.h"
-#include "list.h"
 #include "region.h"
-#include "render.h"
+#include "compton-compat/render.h"
 #include "types.h"
-#include "utils.h"
 #include "win_defs.h"
 #include "x.h"
 

@@ -7,7 +7,7 @@
 #include <xcb/xcb.h>
 
 #include "log.h"
-#include "utils.h"
+#include "utils/utils.h"
 
 typedef struct pixman_region32 pixman_region32_t;
 typedef struct pixman_box32 pixman_box32_t;

@@ -32,13 +32,14 @@
 #include <X11/Xlib.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
+
 #include "atom.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "log.h"
-#include "string_utils.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 

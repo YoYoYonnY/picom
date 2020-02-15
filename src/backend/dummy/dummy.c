@@ -1,16 +1,17 @@
 #include <uthash.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "backend/backend.h"
 #include "backend/backend_common.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "log.h"
 #include "region.h"
 #include "types.h"
-#include "uthash_extra.h"
-#include "utils.h"
 #include "x.h"
 
 struct dummy_image {

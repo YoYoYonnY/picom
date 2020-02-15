@@ -8,22 +8,23 @@
 #include <string.h>
 #include <xcb/render.h>        // for xcb_render_fixed_t, XXX
 
+#include "utils/compiler.h"
+#include "utils/meta.h"
+#include "utils/kernel.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
+
 #include "backend/backend.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
-#include "kernel.h"
 #include "log.h"
 #include "region.h"
-#include "string_utils.h"
 #include "types.h"
-#include "utils.h"
 
 #include "backend/backend_common.h"
 #include "backend/gl/gl_common.h"
 
 #define GLSL(version, ...) "#version " #version "\n" #__VA_ARGS__
-#define QUOTE(...) #__VA_ARGS__
 
 static const GLuint vert_coord_loc = 0;
 static const GLuint vert_in_texcoord_loc = 1;

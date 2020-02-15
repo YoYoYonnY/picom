@@ -11,17 +11,18 @@
 #include <stdlib.h>
 #include <xcb/xproto.h>
 
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include <X11/Xutil.h>
 #include "backend/backend.h"
 #include "c2.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "log.h"        // XXX clean up
 #include "region.h"
-#include "render.h"
+#include "compton-compat/render.h"
 #include "types.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 

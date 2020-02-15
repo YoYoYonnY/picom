@@ -15,9 +15,10 @@
 #include <xcb/xcb.h>
 #include <xcb/render.h>
 
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include "log.h"
-#include "compiler.h"
-#include "utils.h"
 #include "x.h"
 
 struct glx_fbconfig_info {

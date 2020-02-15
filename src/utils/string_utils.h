@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <stddef.h>
 
-#include "compiler.h"
+#include "utils/compiler.h"
 
 #define mstrncmp(s1, s2) strncmp((s1), (s2), strlen(s1))
 

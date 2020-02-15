@@ -15,20 +15,22 @@
 #include <xcb/render.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/string_utils.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "backend/gl/gl_common.h"
 #include "backend/gl/glx.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
-#include "kernel.h"
 #include "log.h"
 #include "region.h"
-#include "string_utils.h"
-#include "uthash_extra.h"
-#include "utils.h"
 #include "win.h"
 
 #include "opengl.h"
+#include "compton-compat/common.h"
 
 #ifndef GL_TEXTURE_RECTANGLE
 #define GL_TEXTURE_RECTANGLE 0x84F5

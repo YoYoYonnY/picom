@@ -4,10 +4,11 @@
 #include <assert.h>
 #include <math.h>
 
-#include "compiler.h"
-#include "kernel.h"
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/utils.h"
+
 #include "log.h"
-#include "utils.h"
 
 /// Sum a region convolution kernel. Region is defined by a width x height rectangle whose
 /// top left corner is at (x, y)

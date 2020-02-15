@@ -5,10 +5,11 @@
 
 #include <stdbool.h>
 
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+
 #include "config.h"
-#include "compiler.h"
 #include "driver.h"
-#include "kernel.h"
 #include "region.h"
 #include "types.h"
 #include "x.h"

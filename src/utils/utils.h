@@ -15,7 +15,7 @@
 
 #include <test.h>
 
-#include "compiler.h"
+#include "utils/compiler.h"
 
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 

@@ -6,13 +6,14 @@
 #include <xcb/xcb_image.h>
 #include <xcb/xcb_renderutil.h>
 
+#include "utils/kernel.h"
+#include "utils/utils.h"
+
 #include "backend/backend.h"
 #include "backend/backend_common.h"
 #include "common.h"
 #include "config.h"
-#include "kernel.h"
 #include "log.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 

@@ -29,14 +29,19 @@
 #include <ev.h>
 #include <test.h>
 
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/list.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "err.h"
-#include "kernel.h"
 #include "picom.h"
 #ifdef CONFIG_OPENGL
 #include "opengl.h"
+#include "compton-compat/common.h"
 #endif
 #include "backend/backend.h"
 #include "c2.h"
@@ -44,17 +49,14 @@
 #include "diagnostic.h"
 #include "log.h"
 #include "region.h"
-#include "render.h"
+#include "compton-compat/render.h"
 #include "types.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 #include "atom.h"
 #include "event.h"
 #include "file_watch.h"
-#include "list.h"
 #include "options.h"
-#include "uthash_extra.h"
 
 /// Get session_t pointer from a pointer to a member of session_t
 #define session_ptr(ptr, member)                                                         \
@@ -497,10 +499,12 @@ static struct managed_win *paint_preprocess(session_t *ps, bool *fade_running) {
 			rc_region_unref(&w->reg_ignore);
 		}
 
+#ifdef CONFIG_COMPTONCOMPAT
 		// Clear flags if we are not using experimental backends
 		if (!ps->o.experimental_backends) {
 			w->flags = 0;
 		}
+#endif
 
 		// log_trace("%d %d %s", w->a.map_state, w->ever_damaged, w->name);
 
@@ -797,10 +801,13 @@ void configure_root(session_t *ps, int width, int height) {
 		if (ps->o.experimental_backends) {
 			assert(ps->backend_data);
 			has_root_change = ps->backend_data->ops->root_change != NULL;
-		} else {
+		}
+#ifdef CONFIG_COMPTONCOMPAT
+		else {
 			// Old backend can handle root change
 			has_root_change = true;
 		}
+#endif
 
 		if (!has_root_change) {
 			// deinit/reinit backend and free up resources if the backend
@@ -828,7 +835,7 @@ void configure_root(session_t *ps, int width, int height) {
 			pixman_region32_clear(&ps->damage_ring[i]);
 		}
 		ps->damage = ps->damage_ring + ps->ndamage - 1;
-#ifdef CONFIG_OPENGL
+#if defined(CONFIG_OPENGL) && defined(CONFIG_COMPTONCOMPAT)
 		// GLX root change callback
 		if (BKEND_GLX == ps->o.backend && !ps->o.experimental_backends) {
 			glx_on_root_change(ps);
@@ -1213,9 +1220,12 @@ static bool redirect_start(session_t *ps) {
 	if (ps->o.experimental_backends) {
 		assert(ps->backend_data);
 		ps->ndamage = ps->backend_data->ops->max_buffer_age;
-	} else {
+	}
+#ifdef CONFIG_COMPTONCOMPAT
+	else {
 		ps->ndamage = maximum_buffer_age(ps);
 	}
+#endif
 	ps->damage_ring = ccalloc(ps->ndamage, region_t);
 	ps->damage = ps->damage_ring + ps->ndamage - 1;
 
@@ -1455,9 +1465,12 @@ static void _draw_callback(EV_P_ session_t *ps, int revents attr_unused) {
 		static int paint = 0;
 		if (ps->o.experimental_backends) {
 			paint_all_new(ps, bottom, false);
-		} else {
+		}
+#ifdef CONFIG_COMPTONCOMPAT
+		else {
 			paint_all(ps, bottom, false);
 		}
+#endif
 
 		ps->first_frame = false;
 		paint++;
@@ -1760,18 +1773,6 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	                                                  XCB_XFIXES_MINOR_VERSION)
 	                             .sequence);
 
-	extern int loadmod_blur(session_t *ps, module_t *module, void *ud);
-	extern int loadmod_dbus(session_t *ps, module_t *module, void *ud);
-	extern int loadmod_fading(session_t *ps, module_t *module, void *ud);
-	extern int loadmod_shadow(session_t *ps, module_t *module, void *ud);
-	extern int loadmod_transparency(session_t *ps, module_t *module, void *ud);
-
-	module_load(ps, loadmod_blur, NULL);
-	module_load(ps, loadmod_dbus, NULL);
-	module_load(ps, loadmod_fading, NULL);
-	module_load(ps, loadmod_shadow, NULL);
-	module_load(ps, loadmod_transparency, NULL);
-
 	// Parse configuration file
 	win_option_mask_t winopt_mask[NUM_WINTYPES] = {{0}};
 	bool shadow_enabled = false, fading_enable = false, hasneg = false;
@@ -1956,11 +1957,13 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 
 	ps->drivers = detect_driver(ps->c, ps->backend_data, ps->root);
 
+#ifdef CONFIG_COMPTONCOMPAT
 	// Initialize filters, must be preceded by OpenGL context creation
 	if (!ps->o.experimental_backends && !init_render(ps)) {
 		log_fatal("Failed to initialize the backend");
 		exit(1);
 	}
+#endif
 
 	if (ps->o.print_diagnostics) {
 		print_diagnostics(ps, config_file);
@@ -1975,6 +1978,7 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 
 	free(config_file_to_free);
 
+#ifdef CONFIG_COMPTONCOMPAT
 	if (bkend_use_glx(ps) && !ps->o.experimental_backends) {
 		auto gl_logger = gl_string_marker_logger_new();
 		if (gl_logger) {
@@ -1982,6 +1986,7 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 			log_add_target_tls(gl_logger);
 		}
 	}
+#endif
 
 	if (ps->o.experimental_backends) {
 		if (ps->o.monitor_repaint && !backend_list[ps->o.backend]->fill) {
@@ -2016,6 +2021,22 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 		} else
 			ps->tgt_picture = ps->root_picture;
 	}
+
+#ifdef CONFIG_MODULES
+	extern modinfo_t modinfo_blur;
+	extern modinfo_t modinfo_dbus;
+	extern modinfo_t modinfo_fade;
+	extern modinfo_t modinfo_filter;
+	extern modinfo_t modinfo_shadow;
+	extern modinfo_t modinfo_trans;
+
+	module_load(ps, &modinfo_dbus, NULL);
+	module_load(ps, &modinfo_trans, NULL);
+	module_load(ps, &modinfo_fade, NULL);
+	module_load(ps, &modinfo_shadow, NULL);
+	module_load(ps, &modinfo_blur, NULL);
+	module_load(ps, &modinfo_filter, NULL);
+#endif
 
 	ev_io_init(&ps->xiow, x_event_callback, ConnectionNumber(ps->dpy), EV_READ);
 	ev_io_start(ps->loop, &ps->xiow);
@@ -2136,7 +2157,7 @@ static void session_destroy(session_t *ps) {
 	xcb_change_window_attributes(ps->c, ps->root, XCB_CW_EVENT_MASK,
 	                             (const uint32_t[]){0});
 
-	module_emit(MODEV_EXIT, ps, NULL);
+	module_emit(MODEV_EARLY_EXIT, ps, NULL);
 
 	// Free window linked list
 
@@ -2246,9 +2267,12 @@ static void session_destroy(session_t *ps) {
 	if (ps->o.experimental_backends) {
 		// backend is deinitialized in unredirect()
 		assert(ps->backend_data == NULL);
-	} else {
+	}
+#ifdef CONFIG_COMPTONCOMPAT
+	else {
 		deinit_render(ps);
 	}
+#endif
 
 #if CONFIG_OPENGL
 	if (glx_has_context(ps)) {
@@ -2277,6 +2301,8 @@ static void session_destroy(session_t *ps) {
 	ev_prepare_stop(ps->loop, &ps->event_check);
 	ev_signal_stop(ps->loop, &ps->usr1_signal);
 	ev_signal_stop(ps->loop, &ps->int_signal);
+
+	module_emit(MODEV_EXIT, ps, NULL);
 }
 
 /**

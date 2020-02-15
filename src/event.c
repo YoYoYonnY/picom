@@ -8,26 +8,27 @@
 #include <xcb/damage.h>
 #include <xcb/randr.h>
 
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include "atom.h"
 #include "common.h"
-#include "compiler.h"
 #include "picom.h"
 #include "config.h"
 #include "event.h"
 #include "log.h"
 #include "region.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 
 /// Event handling with X is complicated. Handling events with other events possibly
-/// in-flight is no good. Because your internal state won't be up to date. Also, querying
-/// the server while events are in-flight is not good. Because events later in the queue
-/// might container information you are querying. Thus those events will cause you to do
-/// unnecessary updates even when you already have the latest information (remember, you
-/// made the query when those events were already in the queue. so the reply you got is
-/// more up-to-date than the events). Also, handling events when other client are making
-/// concurrent requests is not good. Because the server states are changing without you
+/// in-flight is no good, because your internal state won't be up to date. Also, querying
+/// the server while events are in-flight is no good either, because events later in the queue
+/// might contain information you are querying; those events will cause you to do
+/// unnecessary updates even when you already have the latest information (Remember, you
+/// made the query when those events were already in the queue. So the reply you got is
+/// more up-to-date than the events). Also, handling events when other clients are making
+/// concurrent requests is not good, because the server states are changing without you
 /// knowning them. This is super racy, and can cause lots of potential problems.
 ///
 /// All of above mandates we do these things:
@@ -39,11 +40,11 @@
 ///
 /// To break that circle, we split all event handling into top and bottom halves. The
 /// bottom half will just look at the event itself, update as much state as they can
-/// without making queries, then queue up necessary works need to be done by the top half.
+/// without making queries, then queue up necessary works that need to be done by the top half.
 /// The top half will do all the other necessary updates. Before entering the top half, we
 /// grab the server and make sure the event queue is empty.
 ///
-/// When top half finished, we enter the render stage, where no server state should be
+/// When the top half is finished, we enter the render stage, where no server state should be
 /// queried. All rendering should be done with our internal knowledge of the server state.
 ///
 /// TODO the things described above

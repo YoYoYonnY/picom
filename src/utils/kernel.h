@@ -3,7 +3,7 @@
 
 #pragma once
 #include <stdlib.h>
-#include "compiler.h"
+#include "utils/compiler.h"
 
 /// Code for generating convolution kernels
 

@@ -7,10 +7,11 @@ base_deps = [
 	libev
 ]
 
-srcs = [ files('picom.c', 'win.c', 'c2.c', 'x.c', 'config.c', 'vsync.c', 'utils.c',
-               'diagnostic.c', 'string_utils.c', 'render.c', 'kernel.c', 'log.c',
-               'options.c', 'event.c', 'cache.c', 'atom.c', 'file_watch.c',
-               'module.c') ]
+srcs = [ files('picom.c', 'win.c', 'c2.c', 'x.c', 'config.c', 'vsync.c',
+               'diagnostic.c', 'log.c', 'options.c', 'event.c',
+               'atom.c', 'file_watch.c', 'module.c') ]
+subdir('utils')
+
 picom_inc = include_directories('.')
 
 cflags = []
@@ -61,7 +62,15 @@ endif
 if get_option('opengl')
 	cflags += ['-DCONFIG_OPENGL', '-DGL_GLEXT_PROTOTYPES']
 	deps += [dependency('gl', required: true)]
-	srcs += [ 'opengl.c' ]
+	srcs += [ files('opengl.c') ]
+endif
+if get_option('compton_compat')
+	cflags += ['-DCONFIG_COMPTONCOMPAT']
+	subdir('compton-compat')
+endif
+if get_option('modules')
+	cflags += ['-DCONFIG_MODULES']
+	subdir('module')
 endif
 
 if get_option('xrescheck')
@@ -82,7 +91,6 @@ elif host_system == 'freebsd' or host_system == 'netbsd' or
 endif
 
 subdir('backend')
-subdir('module')
 
 picom = executable('picom', srcs, c_args: cflags,
   dependencies: [ base_deps, deps, test_h_dep ],

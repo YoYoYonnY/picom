@@ -15,26 +15,28 @@
 #include <xcb/xcb_renderutil.h>
 #include <xcb/xinerama.h>
 
+#include "utils/compiler.h"
+#include "utils/list.h"
+#include "utils/string_utils.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "atom.h"
 #include "backend/backend.h"
 #include "c2.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
-#include "list.h"
 #include "log.h"
 #include "picom.h"
 #include "region.h"
-#include "render.h"
-#include "string_utils.h"
+#include "compton-compat/render.h"
 #include "types.h"
-#include "uthash_extra.h"
-#include "utils.h"
 #include "x.h"
 
 // TODO remove this include
 #ifdef CONFIG_OPENGL
 #include "opengl.h"
+#include "compton-compat/common.h"
 #endif
 
 #include "win.h"

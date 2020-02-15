@@ -20,17 +20,18 @@
 #include <xcb/composite.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include "backend/backend.h"
 #include "backend/backend_common.h"
 #include "backend/gl/gl_common.h"
 #include "backend/gl/glx.h"
 #include "common.h"
-#include "compiler.h"
 #include "picom.h"
 #include "config.h"
 #include "log.h"
 #include "region.h"
-#include "utils.h"
 #include "win.h"
 #include "x.h"
 

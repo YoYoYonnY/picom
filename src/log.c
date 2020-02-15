@@ -14,9 +14,10 @@
 #include "backend/gl/gl_common.h"
 #endif
 
-#include "compiler.h"
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include "log.h"
-#include "utils.h"
 
 thread_local struct log *tls_logger;
 

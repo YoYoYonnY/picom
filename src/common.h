@@ -40,7 +40,11 @@
 #include <xcb/render.h>
 #include <xcb/sync.h>
 
-#include "uthash_extra.h"
+#include "utils/compiler.h"
+#include "utils/list.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #ifdef CONFIG_OPENGL
 #include "backend/gl/glx.h"
 #endif
@@ -53,13 +57,10 @@
 // FIXME This list of includes should get shorter
 #include "backend/backend.h"
 #include "backend/driver.h"
-#include "compiler.h"
 #include "config.h"
 #include "region.h"
 #include "types.h"
-#include "utils.h"
-#include "list.h"
-#include "render.h"
+#include "compton-compat/render.h"
 #include "win_defs.h"
 #include "x.h"
 
@@ -532,7 +533,4 @@ static inline void wintype_arr_enable(bool arr[]) {
 		arr[i] = true;
 	}
 }
-
-// Load module.h as late as possible.
-// Effectively, this #include's "common.h" in module.h
 #include "module.h"

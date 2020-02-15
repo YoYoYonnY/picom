@@ -4,7 +4,8 @@
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
-#include "compiler.h"
+
+#include "utils/compiler.h"
 
 // Functions for error reporting, adopted from Linux
 

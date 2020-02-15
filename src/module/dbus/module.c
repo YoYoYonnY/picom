@@ -1,11 +1,10 @@
-#define MODULE_NAME dbus
 #include "module.h"
 #include "common.h"
 #ifdef CONFIG_DBUS
 #include "dbus.h"
 #endif
 
-static int MODULE(init)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int oninit(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -26,7 +25,7 @@ static int MODULE(init)(modev_t evid, module_t *module, session_t *ps, void *ud)
 	return 0;
 }
 #ifdef CONFIG_DBUS
-static int MODULE(exit)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onexit(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -39,7 +38,7 @@ static int MODULE(exit)(modev_t evid, module_t *module, session_t *ps, void *ud)
 
 	return 0;
 }
-static int MODULE(win_added)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onwin_added(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -50,7 +49,7 @@ static int MODULE(win_added)(modev_t evid, module_t *module, session_t *ps, void
 
 	return 0;
 }
-static int MODULE(win_focus)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onwin_focus(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -65,7 +64,7 @@ static int MODULE(win_focus)(modev_t evid, module_t *module, session_t *ps, void
 
 	return 0;
 }
-static int MODULE(win_destroyed)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onwin_destroyed(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -76,7 +75,7 @@ static int MODULE(win_destroyed)(modev_t evid, module_t *module, session_t *ps, 
 
 	return 0;
 }
-static int MODULE(win_unmapped)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onwin_unmapped(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -87,7 +86,7 @@ static int MODULE(win_unmapped)(modev_t evid, module_t *module, session_t *ps, v
 
 	return 0;
 }
-static int MODULE(win_mapped)(modev_t evid, module_t *module, session_t *ps, void *ud)
+static int onwin_mapped(modev_t evid, module_t *module, session_t *ps, void *ud)
 {
 	UNUSED(evid);
 	UNUSED(module);
@@ -100,20 +99,23 @@ static int MODULE(win_mapped)(modev_t evid, module_t *module, session_t *ps, voi
 }
 #endif
 
-int loadmod_dbus(session_t *ps, module_t *module, void *ud) {
+static int load(session_t *ps, module_t *module, void *ud) {
 	UNUSED(ps);
 	UNUSED(ud);
-	module->name = "dbus";
-	module->modev_cb[MODEV_EARLY_INIT] = MODULE(init);
+	module_subscribe(module, MODEV_EARLY_INIT, oninit);
 #ifdef CONFIG_DBUS
-	module->modev_cb[MODEV_EXIT] = MODULE(exit);
-	module->modev_cb[MODEV_WIN_ADDED] = MODULE(win_added);
-	module->modev_cb[MODEV_WIN_FOCUSIN] = MODULE(win_focus);
-	module->modev_cb[MODEV_WIN_FOCUSOUT] = MODULE(win_focus);
-	module->modev_cb[MODEV_WIN_DESTROYED] = MODULE(win_destroyed);
-	module->modev_cb[MODEV_WIN_UNMAPPED] = MODULE(win_unmapped);
-	module->modev_cb[MODEV_WIN_MAPPED] = MODULE(win_mapped);
+	module_subscribe(module, MODEV_EXIT, onexit);
+	module_subscribe(module, MODEV_WIN_ADDED, onwin_added);
+	module_subscribe(module, MODEV_WIN_FOCUSIN, onwin_focus);
+	module_subscribe(module, MODEV_WIN_FOCUSOUT, onwin_focus);
+	module_subscribe(module, MODEV_WIN_DESTROYED, onwin_destroyed);
+	module_subscribe(module, MODEV_WIN_UNMAPPED, onwin_unmapped);
+	module_subscribe(module, MODEV_WIN_MAPPED, onwin_mapped);
 #endif
 	return 0;
 }
-#undef MODULE_NAME
+modinfo_t modinfo_dbus = {
+	.name = "dbus",
+	.load = load,
+	.unload = NULL,
+};

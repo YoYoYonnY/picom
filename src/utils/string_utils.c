@@ -5,9 +5,9 @@
 
 #include <test.h>
 
-#include "compiler.h"
-#include "string_utils.h"
-#include "utils.h"
+#include "utils/compiler.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
 
 #pragma GCC diagnostic push
 

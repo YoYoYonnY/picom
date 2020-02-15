@@ -7,7 +7,8 @@
 #include <stdbool.h>
 #include <xcb/render.h>        // for xcb_render_fixed_t
 
-#include "compiler.h"
+#include "utils/compiler.h"
+
 #include "config.h"
 #include "types.h"
 #include "win.h"        // for wintype_t

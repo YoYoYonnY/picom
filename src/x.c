@@ -13,16 +13,17 @@
 #include <xcb/xcb_renderutil.h>
 #include <xcb/xfixes.h>
 
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/utils.h"
+
 #include "atom.h"
 #ifdef CONFIG_OPENGL
 #include "backend/gl/glx.h"
 #endif
 #include "common.h"
-#include "compiler.h"
-#include "kernel.h"
 #include "log.h"
 #include "region.h"
-#include "utils.h"
 #include "x.h"
 
 /**

@@ -10,14 +10,15 @@
 #include <libconfig.h>
 #include <libgen.h>
 
+#include "utils/compiler.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
+
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "err.h"
 #include "log.h"
 #include "options.h"
-#include "string_utils.h"
-#include "utils.h"
 #include "win.h"
 
 #pragma GCC diagnostic error "-Wunused-parameter"

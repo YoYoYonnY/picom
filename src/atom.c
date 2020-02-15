@@ -3,7 +3,7 @@
 
 #include "atom.h"
 #include "common.h"
-#include "utils.h"
+#include "utils/utils.h"
 #include "log.h"
 
 static inline void *atom_getter(void *ud, const char *atom_name, int *err) {

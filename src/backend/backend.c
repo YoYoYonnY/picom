@@ -3,9 +3,10 @@
 #include <xcb/sync.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+
 #include "backend/backend.h"
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
 #include "log.h"
 #include "region.h"

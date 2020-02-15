@@ -16,10 +16,11 @@
 #include <ev.h>
 #include <uthash.h>
 
+#include "utils/list.h"
+#include "utils/utils.h"
+
 #include "file_watch.h"
-#include "list.h"
 #include "log.h"
-#include "utils.h"
 
 struct watched_file {
 	int wd;

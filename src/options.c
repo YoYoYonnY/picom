@@ -10,12 +10,13 @@
 #include <unistd.h>
 #include <xcb/render.h>        // for xcb_render_fixed_t, XXX
 
+#include "utils/utils.h"
+
 #include "backend/backend.h"
 #include "common.h"
 #include "config.h"
 #include "log.h"
 #include "options.h"
-#include "utils.h"
 #include "win.h"
 
 #pragma GCC diagnostic error "-Wunused-parameter"
@@ -852,6 +853,10 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 		}
 		// clang-format on
 	}
+
+#ifndef CONFIG_COMPTONCOMPAT
+	opt->experimental_backends = true;
+#endif
 
 	// Restore LC_NUMERIC
 	setlocale(LC_NUMERIC, lc_numeric_old);

@@ -10,8 +10,9 @@
 #include <xcb/xcb_renderutil.h>
 #include <xcb/xfixes.h>
 
-#include "compiler.h"
-#include "kernel.h"
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+
 #include "log.h"
 #include "region.h"
 

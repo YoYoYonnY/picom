@@ -1,7 +1,40 @@
 #include "common.h"
-#include "compiler.h"
-#include "utils.h"
+
+#include "utils/compiler.h"
+#include "utils/utils.h"
+
 #include "module.h"
+
+module_t *module_load(session_t *ps, modinfo_t *modinfo, void *ud)
+{
+	UNUSED(ps);
+	ps->modules = crealloc(ps->modules, ps->num_modules + 1);
+	module_t *module = &ps->modules[ps->num_modules++];
+	memset(module, 0x00, sizeof(module_t));
+	module->info = *modinfo;
+	module->windata_cookie = -1;
+	if (module && (!module->info.load || module->info.load(ps, module, ud) == 0)) {
+		log_info("Module '%s' successfully loaded!", module->info.name);
+		return 0;
+	}
+	return NULL;
+}
+void module_unload(session_t *ps, module_t *module, void *ud)
+{
+	UNUSED(ps);
+	UNUSED(module);
+	UNUSED(ud);
+	// TODO
+}
+
+void module_subscribe(module_t *module, modev_t evid, modev_cb_t cb)
+{
+	module->modev_cb[evid] = cb;
+}
+void module_unsubscribe(module_t *module, modev_t evid)
+{
+	module->modev_cb[evid] = NULL;
+}
 
 int module_emit(modev_t evid, session_t *ps, void *ud)
 {
@@ -15,25 +48,6 @@ int module_emit(modev_t evid, session_t *ps, void *ud)
 		}
 	}
 	return nemitted;
-}
-int module_load(session_t *ps, modloader_cb_t loader, void *ud)
-{
-	static const module_t module_def = {
-		.name = NULL,
-		.loader = NULL,
-		.modev_cb = {0},
-		.windata_cookie = -1,
-	};
-	UNUSED(ps);
-	ps->modules = crealloc(ps->modules, ps->num_modules + 1);
-	module_t *module = &ps->modules[ps->num_modules++];
-	*module = module_def;
-	module->loader = loader;
-	if (loader(ps, module, ud) == 0) {
-		log_info("Module '%s' successfully loaded!", module->name);
-		return 0;
-	}
-	return -1;
 }
 windata_cookie_t module_reserve_windowdata(session_t *ps, module_t *module, size_t reserve)
 {

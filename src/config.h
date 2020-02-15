@@ -19,8 +19,9 @@
 #include <libconfig.h>
 #endif
 
-#include "compiler.h"
-#include "kernel.h"
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+
 #include "log.h"
 #include "region.h"
 #include "win_defs.h"

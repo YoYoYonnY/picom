@@ -11,11 +11,11 @@
 
 #pragma once
 
+#include "utils/compiler.h"
+
 #include "common.h"
-#include "compiler.h"
 #include "log.h"
 #include "region.h"
-#include "render.h"
 #include "win.h"
 
 #include <GL/gl.h>

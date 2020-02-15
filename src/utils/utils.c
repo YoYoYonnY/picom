@@ -2,9 +2,9 @@
 #include <string.h>
 #include <sys/uio.h>
 
-#include "compiler.h"
-#include "string_utils.h"
-#include "utils.h"
+#include "utils/compiler.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
 
 /// Report allocation failure without allocating memory
 void report_allocation_failure(const char *func, const char *file, unsigned int line) {

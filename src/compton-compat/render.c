@@ -15,6 +15,7 @@
 #ifdef CONFIG_OPENGL
 #include "backend/gl/glx.h"
 #include "opengl.h"
+#include "compton-compat/common.h"
 
 #ifndef GLX_BACK_BUFFER_AGE_EXT
 #define GLX_BACK_BUFFER_AGE_EXT 0x20F4
@@ -22,13 +23,14 @@
 
 #endif
 
-#include "compiler.h"
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/utils.h"
+
 #include "config.h"
-#include "kernel.h"
 #include "log.h"
 #include "region.h"
 #include "types.h"
-#include "utils.h"
 #include "vsync.h"
 #include "win.h"
 #include "x.h"
@@ -161,29 +163,6 @@ static inline void attr_nonnull(1, 2) set_tgt_clip(session_t *ps, region_t *reg)
 #endif
 	default: assert(false);
 	}
-}
-
-/**
- * Destroy a <code>Picture</code>.
- */
-void free_picture(xcb_connection_t *c, xcb_render_picture_t *p) {
-	if (*p) {
-		xcb_render_free_picture(c, *p);
-		*p = XCB_NONE;
-	}
-}
-
-/**
- * Free paint_t.
- */
-void free_paint(session_t *ps, paint_t *ppaint) {
-#ifdef CONFIG_OPENGL
-	free_paint_glx(ps, ppaint);
-#endif
-	free_picture(ps->c, &ppaint->pict);
-	if (ppaint->pixmap)
-		xcb_free_pixmap(ps->c, ppaint->pixmap);
-	ppaint->pixmap = XCB_NONE;
 }
 
 void render(session_t *ps, int x, int y, int dx, int dy, int wid, int hei, double opacity,
@@ -1175,24 +1154,6 @@ bool init_render(session_t *ps) {
 		}
 	}
 	return true;
-}
-
-/**
- * Free root tile related things.
- */
-void free_root_tile(session_t *ps) {
-	free_picture(ps->c, &ps->root_tile_paint.pict);
-#ifdef CONFIG_OPENGL
-	free_texture(ps, &ps->root_tile_paint.ptex);
-#else
-	assert(!ps->root_tile_paint.ptex);
-#endif
-	if (ps->root_tile_fill) {
-		xcb_free_pixmap(ps->c, ps->root_tile_paint.pixmap);
-		ps->root_tile_paint.pixmap = XCB_NONE;
-	}
-	ps->root_tile_paint.pixmap = XCB_NONE;
-	ps->root_tile_fill = false;
 }
 
 void deinit_render(session_t *ps) {

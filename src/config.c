@@ -10,15 +10,16 @@
 #include <string.h>
 #include <xcb/render.h>        // for xcb_render_fixed_t, XXX
 
+#include "utils/compiler.h"
+#include "utils/kernel.h"
+#include "utils/string_utils.h"
+#include "utils/utils.h"
+
 #include "c2.h"
 #include "common.h"
-#include "compiler.h"
-#include "kernel.h"
 #include "log.h"
 #include "region.h"
-#include "string_utils.h"
 #include "types.h"
-#include "utils.h"
 #include "win.h"
 
 #include "config.h"

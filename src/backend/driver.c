@@ -6,10 +6,11 @@
 #include <xcb/randr.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+
 #include "backend/backend.h"
 #include "backend/driver.h"
 #include "common.h"
-#include "compiler.h"
 #include "log.h"
 
 enum driver detect_driver(xcb_connection_t *c, backend_t *backend_data, xcb_window_t window) {

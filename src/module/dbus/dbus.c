@@ -18,15 +18,16 @@
 #include <unistd.h>
 #include <xcb/xcb.h>
 
+#include "utils/compiler.h"
+#include "utils/list.h"
+#include "utils/string_utils.h"
+#include "utils/uthash_extra.h"
+#include "utils/utils.h"
+
 #include "common.h"
-#include "compiler.h"
 #include "config.h"
-#include "list.h"
 #include "log.h"
-#include "string_utils.h"
 #include "types.h"
-#include "uthash_extra.h"
-#include "utils.h"
 #include "win.h"
 
 #include "dbus.h"

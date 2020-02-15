@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2014 Richard Grenville <pyxlcy@gmail.com>
 
-#include "compiler.h"
+#include "utils/compiler.h"
+
 #include "log.h"
 
 #include "xrescheck.h"

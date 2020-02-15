@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "compiler.h"
+#include "utils/compiler.h"
 
 enum log_level {
 	LOG_LEVEL_INVALID = -1,

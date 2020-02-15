@@ -6,8 +6,8 @@ static int load(session_t *ps, module_t *module, void *ud) {
 	UNUSED(ud);
 	return 0;
 }
-modinfo_t modinfo_blur = {
-	.name = "blur",
+modinfo_t modinfo_fade = {
+	.name = "fade",
 	.load = load,
 	.unload = NULL,
 };
