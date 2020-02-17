@@ -678,7 +678,15 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 			break;
 		P_CASEBOOL(284, blur_background_frame);
 		P_CASEBOOL(285, blur_background_fixed);
-		P_CASEBOOL(286, dbus);
+		case 286:
+			{
+				module_t *module = container_of(opt, session_t, o)->module_dbus;
+				pedantic_assert(module);
+				cfg_prop_t prop = cfg_getprop(&module->cfg_module, "enabled");
+				pedantic_assert(prop != -1);
+				cfg_setbool(&module->cfg_module, module->options, prop, true);
+			}
+			break;
 		case 287:
 			log_warn("Please use --log-file instead of --logpath");
 			// fallthrough

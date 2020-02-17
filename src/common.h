@@ -367,17 +367,20 @@ typedef struct session {
 	/// Linked list of additional atoms to track.
 	latom_t *track_atom_lst;
 
-#ifdef CONFIG_DBUS
-	// === DBus related ===
-	void *dbus_data;
-#endif
-
 	int (*vsync_wait)(session_t *);
+
+	// Built-in modules...
+	module_t *module_dbus;
+	module_t *module_trans;
+	module_t *module_fade;
+	module_t *module_shadow;
+	module_t *module_blur;
+	module_t *module_filter;
 
 	/// Number of loaded modules
 	size_t num_modules;
 	/// List of loaded modules
-	module_t *modules;
+	module_t **modules;
 	/// Total reserved window data by all modules so far.
 	size_t reserved_windata;
 } session_t;

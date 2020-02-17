@@ -228,6 +228,19 @@ allocchk_(const char *func_name, const char *file, unsigned int line, void *ptr)
 		((__typeof__(ptr))allocchk(realloc((ptr), (size_t)tmp * sizeof(*(ptr))))); \
 	})
 
+/**
+ * container_of - cast a member of a structure out to the containing structure
+ * @ptr:	the pointer to the member.
+ * @type:	the type of the container struct this is embedded in.
+ * @member:	the name of the member within the struct.
+ *
+ */
+#define container_of(ptr, type, member)                                                  \
+	({                                                                               \
+		const __typeof__(((type *)0)->member) *__mptr = (ptr);                   \
+		(type *)((char *)__mptr - offsetof(type, member));                       \
+	})
+
 /// RC_TYPE generates a reference counted type from `type`
 ///
 /// parameters:

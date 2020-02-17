@@ -1653,9 +1653,6 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	    .atoms_wintypes = {0},
 	    .track_atom_lst = NULL,
 
-#ifdef CONFIG_DBUS
-	    .dbus_data = NULL,
-#endif
 	    .num_modules = 0,
 	    .modules = NULL,
 	    .reserved_windata = 0,
@@ -1783,6 +1780,22 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	if (IS_ERR(config_file_to_free)) {
 		return NULL;
 	}
+
+#ifdef CONFIG_MODULES
+	extern modinfo_t modinfo_blur;
+	extern modinfo_t modinfo_dbus;
+	extern modinfo_t modinfo_fade;
+	extern modinfo_t modinfo_filter;
+	extern modinfo_t modinfo_shadow;
+	extern modinfo_t modinfo_trans;
+
+	ps->module_dbus = module_load(ps, &modinfo_dbus, NULL);
+	ps->module_trans = module_load(ps, &modinfo_trans, NULL);
+	ps->module_fade = module_load(ps, &modinfo_fade, NULL);
+	ps->module_shadow = module_load(ps, &modinfo_shadow, NULL);
+	ps->module_blur = module_load(ps, &modinfo_blur, NULL);
+	ps->module_filter = module_load(ps, &modinfo_filter, NULL);
+#endif
 
 	// Parse all of the rest command line options
 	if (!get_cfg(&ps->o, argc, argv, shadow_enabled, fading_enable, hasneg, winopt_mask)) {
@@ -2021,22 +2034,6 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 		} else
 			ps->tgt_picture = ps->root_picture;
 	}
-
-#ifdef CONFIG_MODULES
-	extern modinfo_t modinfo_blur;
-	extern modinfo_t modinfo_dbus;
-	extern modinfo_t modinfo_fade;
-	extern modinfo_t modinfo_filter;
-	extern modinfo_t modinfo_shadow;
-	extern modinfo_t modinfo_trans;
-
-	module_load(ps, &modinfo_dbus, NULL);
-	module_load(ps, &modinfo_trans, NULL);
-	module_load(ps, &modinfo_fade, NULL);
-	module_load(ps, &modinfo_shadow, NULL);
-	module_load(ps, &modinfo_blur, NULL);
-	module_load(ps, &modinfo_filter, NULL);
-#endif
 
 	ev_io_init(&ps->xiow, x_event_callback, ConnectionNumber(ps->dpy), EV_READ);
 	ev_io_start(ps->loop, &ps->xiow);

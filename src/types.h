@@ -7,6 +7,12 @@
 
 #include <stdint.h>
 
+typedef struct buf {
+	void *data;
+	size_t size;
+} buf_t;
+#define BUF_NULL ((buf_t){ NULL, 0 })
+
 /// Enumeration type to represent switches.
 typedef enum {
 	OFF = 0,        // false

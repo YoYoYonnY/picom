@@ -108,8 +108,6 @@ typedef struct options {
 	switch_t redirected_force;
 	/// Whether to stop painting. Controlled through D-Bus.
 	switch_t stoppaint_force;
-	/// Whether to enable D-Bus support.
-	bool dbus;
 	/// Path to log file.
 	char *logpath;
 	/// Number of cycles to paint in benchmark mode. 0 for disabled.

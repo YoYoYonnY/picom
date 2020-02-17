@@ -5,6 +5,7 @@
 // if we ever get one
 
 #include "utils/meta.h"
+#include "utils/cfg.h"
 #include "utils/utils.h"
 
 #include "win.h"
@@ -16,9 +17,9 @@ typedef struct session session_t;
 enum module_stage {
 	STAGE_PREPARE = 0,
 	STAGE_DECORATE = 100,
-	STAGE_SHADE = 200,
 	STAGE_BLUR = 300,
 	STAGE_SHADOW = 400,
+	STAGE_SHADE = 200,
 	STAGE_COMPOSE = 500,
 } modstage_t;
 
@@ -29,13 +30,28 @@ typedef enum module_event_id {
 	MODEV_EARLY_EXIT,
 	MODEV_EXIT,
 
+	MODEV_STAGE_PAINT_START,
+	MODEV_STAGE_PAINT_PREPARE,
+
 	/* struct managed_window *ud */
-	MODEV_STAGE_PREPARE,
-	MODEV_STAGE_DECORATE,
-	MODEV_STAGE_SHADE,
-	MODEV_STAGE_BLUR,
-	MODEV_STAGE_SHADOW,
-	MODEV_STAGE_COMPOSE,
+	MODEV_STAGE_WIN_PREPARE,
+	MODEV_STAGE_WIN_DECORATE,
+	MODEV_STAGE_WIN_BLUR,
+	MODEV_STAGE_WIN_SHADOW,
+	MODEV_STAGE_WIN_SHADE,
+	MODEV_STAGE_WIN_COMPOSE,
+
+	/* ??? */
+	MODEV_STAGE_SCREEN_PREPARE,
+	MODEV_STAGE_SCREEN_DECORATE,
+	MODEV_STAGE_SCREEN_BLUR,
+	MODEV_STAGE_SCREEN_SHADOW,
+	MODEV_STAGE_SCREEN_SHADE,
+	MODEV_STAGE_SCREEN_COMPOSE,
+	MODEV_STAGE_SCREEN_CLEANUP,
+
+	MODEV_STAGE_PAINT_CLEANUP,
+	MODEV_STAGE_PAINT_DONE,
 
 	 /* struct managed_window *ud */
 	MODEV_WIN_ADDED,
@@ -69,6 +85,14 @@ typedef struct session session_t;
 
 struct module {
 	modinfo_t info;
+	/// Registered module-local variables
+	cfg_t cfg_module;
+	/// Registered window-local variables
+	cfg_t cfg_window;
+	/// Registered session-local variables
+	cfg_t cfg_session;
+	/// Pointer to struct with configuration variables for this module
+	void *options;
 	// ===========    Private Parts     ===========
 	/// Handle to the shared object associated with this module (if any)
 	void *handle;
@@ -87,7 +111,26 @@ void module_subscribe(module_t *module, modev_t evid, modev_cb_t cb);
 void module_unsubscribe(module_t *module, modev_t evid);
 
 int module_emit(modev_t evid, session_t *ps, void *ud);
-/// Reserves extra space for your module in each window.
+/// Reserves extra buffer space for your module in each window.
 /// The windata_cookie_t returned by this function can be used to obtain a pointer to its value
 /// If the window data cannot be created, or if it already exists, returns -1
 windata_cookie_t module_reserve_windowdata(session_t *ps, module_t *module, size_t reserve);
+sesdata_cookie_t module_reserve_sessiondata(session_t *ps, module_t *module, size_t reserve);
+
+#define MODULE_DECLARE_OPTION(TYPE, NAME, CFGTYPE, DEFAULT) TYPE NAME;
+#define MODULE_DECLARE_PROPERTY(TYPE, NAME, CFGTYPE, DEFAULT) cfg_prop_t NAME;
+#define MODULE_DECLARE_OPTIONS(OPTIONS) \
+	struct module_options { \
+		OPTIONS(MODULE_DECLARE_OPTION) \
+	} options; \
+	struct module_properties { \
+		OPTIONS(MODULE_DECLARE_PROPERTY) \
+	} prop
+
+#define MODULE_ADD_OPTION(TYPE, NAME, CFGTYPE, DEFAULT) \
+	prop.NAME = cfg_addprop(&module->cfg_module, STRINGIFY(NAME), &CFGTYPE, offsetof(struct module_options, NAME));
+#define MODULE_ADD_OPTIONS(OPTIONS) \
+	do { \
+		module->options = &options; \
+		OPTIONS(MODULE_ADD_OPTION) \
+	} while (0)
