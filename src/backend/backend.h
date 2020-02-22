@@ -52,20 +52,6 @@ enum image_operations {
 	IMAGE_OP_MAX_BRIGHTNESS,
 };
 
-struct gaussian_blur_args {
-	int size;
-	double deviation;
-};
-
-struct box_blur_args {
-	int size;
-};
-
-struct kernel_blur_args {
-	struct conv **kernels;
-	int kernel_count;
-};
-
 struct backend_operations {
 	// ===========    Initialization    ===========
 
@@ -132,11 +118,6 @@ struct backend_operations {
 
 	/// Fill rectangle of the rendering buffer, mostly for debug purposes, optional.
 	void (*fill)(backend_t *backend_data, struct color, const region_t *clip);
-
-	/// Blur a given region of the rendering buffer.
-	bool (*blur)(backend_t *backend_data, double opacity, void *blur_ctx,
-	             const region_t *reg_blur, const region_t *reg_visible)
-	    attr_nonnull(1, 3, 4, 5);
 
 	/// Update part of the back buffer with the rendering buffer, then present the
 	/// back buffer onto the target window (if not back buffered, update part of the
@@ -211,13 +192,6 @@ struct backend_operations {
 	/// Create another instance of the `image_data`. All `image_op` calls on the
 	/// returned image should not affect the original image
 	void *(*copy)(backend_t *base, const void *image_data, const region_t *reg_visible);
-
-	/// Create a blur context that can be used to call `blur`
-	void *(*create_blur_context)(backend_t *base, enum blur_method, void *args);
-	/// Destroy a blur context
-	void (*destroy_blur_context)(backend_t *base, void *ctx);
-	/// Get how many pixels outside of the blur area is needed for blur
-	void (*get_blur_size)(void *blur_context, int *width, int *height);
 
 	// ===========         Hooks        ============
 	/// Let the backend hook into the event handling queue

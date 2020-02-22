@@ -53,6 +53,8 @@ struct cfg_item {
 };
 struct cfg {
 	cfg_item_t *items;
+	int min_start;
+	int max_end;
 };
 
 #define DEFINE_BASICTYPE(LNAME, UNAME, VALUE, TYPE, DEFAULT, SIZE) extern cfg_type_t cfg_type_##LNAME;
@@ -73,7 +75,7 @@ void cfg_fini(cfg_t *self);
 /// This is not checked for you!
 cfg_prop_t cfg_addprop(cfg_t *self, const char *key, const cfg_type_t *type, int offset);
 /// Returns an index to the property if it exists, -1 otherwise.
-#define cfg_getprop(self, key) cfg_addprop(self, key, NULL, INT_MIN)
+#define cfg_getprop(self, key) cfg_addprop((cfg_t *)(self), (key), NULL, INT_MIN)
 cfg_item_t *cfg_getpropitem(const cfg_t *self, cfg_prop_t prop);
 #define cfg_getpropname(self, prop) cfg_getpropitem(self, prop)->name
 #define cfg_getproprepr(self, prop) cfg_getpropitem(self, prop)->repr

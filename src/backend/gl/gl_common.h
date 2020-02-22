@@ -3,12 +3,147 @@
 #pragma once
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <locale.h>
 #include <stdbool.h>
 #include <string.h>
 
+#include "common.h"
 #include "backend/backend.h"
 #include "log.h"
 #include "region.h"
+
+static inline GLint glGetUniformLocationChecked(GLuint p, const char *name) {
+	auto ret = glGetUniformLocation(p, name);
+	if (ret < 0) {
+		log_error("Failed to get location of uniform '%s'. the compositor might "
+		          "not work correctly.",
+		          name);
+	}
+	return ret;
+}
+/// Convert rectangles in X coordinates to OpenGL vertex and texture coordinates
+/// @param[in] nrects, rects   rectangles
+/// @param[in] dst_x, dst_y    origin of the OpenGL texture, affect the calculated texture
+///                            coordinates
+/// @param[in] texture_height  height of the OpenGL texture
+/// @param[in] root_height     height of the back buffer
+/// @param[in] y_inverted      whether the texture is y inverted
+/// @param[out] coord, indices output
+static inline void
+x_rect_to_coords(int nrects, const rect_t *rects, int dst_x, int dst_y, int texture_height,
+                 int root_height, bool y_inverted, GLint *coord, GLuint *indices) {
+	dst_y = root_height - dst_y;
+	if (y_inverted) {
+		dst_y -= texture_height;
+	}
+
+	for (int i = 0; i < nrects; i++) {
+		// Y-flip. Note after this, crect.y1 > crect.y2
+		rect_t crect = rects[i];
+		crect.y1 = root_height - crect.y1;
+		crect.y2 = root_height - crect.y2;
+
+		// Calculate texture coordinates
+		// (texture_x1, texture_y1), texture coord for the _bottom left_ corner
+		GLint texture_x1 = crect.x1 - dst_x, texture_y1 = crect.y2 - dst_y,
+		      texture_x2 = texture_x1 + (crect.x2 - crect.x1),
+		      texture_y2 = texture_y1 + (crect.y1 - crect.y2);
+
+		// X pixmaps might be Y inverted, invert the texture coordinates
+		if (y_inverted) {
+			texture_y1 = texture_height - texture_y1;
+			texture_y2 = texture_height - texture_y2;
+		}
+
+		// Vertex coordinates
+		auto vx1 = crect.x1;
+		auto vy1 = crect.y2;
+		auto vx2 = crect.x2;
+		auto vy2 = crect.y1;
+
+		// log_trace("Rect %d: %f, %f, %f, %f -> %d, %d, %d, %d",
+		//          ri, rx, ry, rxe, rye, rdx, rdy, rdxe, rdye);
+
+		memcpy(&coord[i * 16],
+		       (GLint[][2]){
+		           {vx1, vy1},
+		           {texture_x1, texture_y1},
+		           {vx2, vy1},
+		           {texture_x2, texture_y1},
+		           {vx2, vy2},
+		           {texture_x2, texture_y2},
+		           {vx1, vy2},
+		           {texture_x1, texture_y2},
+		       },
+		       sizeof(GLint[2]) * 8);
+
+		GLuint u = (GLuint)(i * 4);
+		memcpy(&indices[i * 6], (GLuint[]){u + 0, u + 1, u + 2, u + 2, u + 3, u + 0},
+		       sizeof(GLuint) * 6);
+	}
+}
+
+#define GLSL(version, ...) "#version " #version "\n" #__VA_ARGS__
+
+// clang-format off
+static const char *vertex_shader = GLSL(330,
+	uniform mat4 projection;
+	uniform vec2 orig;
+	uniform vec2 texorig;
+	layout(location = 0) in vec2 coord;
+	layout(location = 1) in vec2 in_texcoord;
+	out vec2 texcoord;
+	void main() {
+		gl_Position = projection * vec4(coord + orig, 0, 1);
+		texcoord = in_texcoord + texorig;
+	}
+);
+static const char dummy_frag[] = GLSL(330,
+	uniform sampler2D tex;
+	in vec2 texcoord;
+	void main() {
+		gl_FragColor = texelFetch(tex, ivec2(texcoord.xy), 0);
+	}
+);
+
+static const char fill_frag[] = GLSL(330,
+	uniform vec4 color;
+	void main() {
+		gl_FragColor = color;
+	}
+);
+
+static const char fill_vert[] = GLSL(330,
+	layout(location = 0) in vec2 in_coord;
+	uniform mat4 projection;
+	void main() {
+		gl_Position = projection * vec4(in_coord, 0, 1);
+	}
+);
+
+static const char interpolating_frag[] = GLSL(330,
+	uniform sampler2D tex;
+	in vec2 texcoord;
+	void main() {
+		gl_FragColor = vec4(texture2D(tex, vec2(texcoord.xy), 0).rgb, 1);
+	}
+);
+
+static const char interpolating_vert[] = GLSL(330,
+	uniform mat4 projection;
+	uniform vec2 texsize;
+	layout(location = 0) in vec2 in_coord;
+	layout(location = 1) in vec2 in_texcoord;
+	out vec2 texcoord;
+	void main() {
+		gl_Position = projection * vec4(in_coord, 0, 1);
+		texcoord = in_texcoord / texsize;
+	}
+);
+// clang-format on
+
+static const GLuint vert_coord_loc = 0;
+static const GLuint vert_in_texcoord_loc = 1;
 
 #define CASESTRRET(s)                                                                    \
 	case s: return #s
@@ -28,14 +163,6 @@ typedef struct {
 typedef struct {
 	GLuint prog;
 } gl_brightness_shader_t;
-
-// Program and uniforms for blur shader
-typedef struct {
-	GLuint prog;
-	GLint unifm_opacity;
-	GLint orig_loc;
-	GLint texorig_loc;
-} gl_blur_shader_t;
 
 typedef struct {
 	GLuint prog;
@@ -115,12 +242,6 @@ void gl_release_image(backend_t *base, void *image_data);
 
 void *gl_copy(backend_t *base, const void *image_data, const region_t *reg_visible);
 
-bool gl_blur(backend_t *base, double opacity, void *, const region_t *reg_blur,
-             const region_t *reg_visible);
-void *gl_create_blur_context(backend_t *base, enum blur_method, void *args);
-void gl_destroy_blur_context(backend_t *base, void *ctx);
-void gl_get_blur_size(void *blur_context, int *width, int *height);
-
 bool gl_is_image_transparent(backend_t *base, void *image_data);
 void gl_fill(backend_t *base, struct color, const region_t *clip);
 
@@ -165,6 +286,30 @@ static inline void gl_check_err_(const char *func, int line) {
 			           "GLX error at line %d: %d", line, err);
 		}
 	}
+}
+
+static inline GLuint glx_gen_texture(GLenum tex_tgt, int width, int height) {
+	GLuint tex = 0;
+	glGenTextures(1, &tex);
+	if (!tex)
+		return 0;
+	glEnable(tex_tgt);
+	glBindTexture(tex_tgt, tex);
+	glTexParameteri(tex_tgt, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(tex_tgt, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(tex_tgt, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(tex_tgt, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(tex_tgt, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glBindTexture(tex_tgt, 0);
+
+	return tex;
+}
+
+static inline void glx_copy_region_to_tex(session_t *ps, GLenum tex_tgt, int basex,
+                                          int basey, int dx, int dy, int width, int height) {
+	if (width > 0 && height > 0)
+		glCopyTexSubImage2D(tex_tgt, 0, dx - basex, dy - basey, dx,
+		                    ps->root_height - dy - height, width, height);
 }
 
 static inline void gl_clear_err(void) {

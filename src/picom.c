@@ -514,11 +514,11 @@ static struct managed_win *paint_preprocess(session_t *ps, bool *fade_running) {
 		if (!w->ever_damaged || w->g.x + w->g.width < 1 ||
 		    w->g.y + w->g.height < 1 || w->g.x >= ps->root_width ||
 		    w->g.y >= ps->root_height || w->state == WSTATE_UNMAPPED ||
-		    ((double)w->opacity * MAX_ALPHA < 1 && !w->blur_background) ||
+		    // NOTE: for consistency, even a window has 0 opacity, we still
+		    // probably need to blur its background, so to_paint shouldn't be
+		    // false for them:
+		    // ((double)w->opacity * MAX_ALPHA < 1 && w->blur_background) ||
 		    w->paint_excluded) {
-			// TODO: for consistency, even a window has 0 opacity, we still
-			// probably need to blur its background, so to_paint shouldn't be
-			// false for them.
 			to_paint = false;
 		}
 
@@ -671,124 +671,15 @@ static void rebuild_shadow_exclude_reg(session_t *ps) {
 
 /// Free up all the images and deinit the backend
 static void destroy_backend(session_t *ps) {
-	win_stack_foreach_managed_safe(w, &ps->window_stack) {
-		// Wrapping up fading in progress
-		if (win_skip_fading(ps, w)) {
-			// `w` is freed by win_skip_fading
-			continue;
-		}
-
-		if (ps->backend_data) {
-			if (w->state == WSTATE_MAPPED) {
-				win_release_images(ps->backend_data, w);
-			} else {
-				assert(!w->win_image);
-				assert(!w->shadow_image);
-			}
-		}
-		free_paint(ps, &w->paint);
-	}
-
-	if (ps->backend_data && ps->root_image) {
-		ps->backend_data->ops->release_image(ps->backend_data, ps->root_image);
-		ps->root_image = NULL;
-	}
-
-	if (ps->backend_data) {
-		// deinit backend
-		if (ps->backend_blur_context) {
-			ps->backend_data->ops->destroy_blur_context(
-			    ps->backend_data, ps->backend_blur_context);
-			ps->backend_blur_context = NULL;
-		}
-		ps->backend_data->ops->deinit(ps->backend_data);
-		ps->backend_data = NULL;
-	}
-}
-
-static bool initialize_blur(session_t *ps) {
-	struct kernel_blur_args kargs;
-	struct gaussian_blur_args gargs;
-	struct box_blur_args bargs;
-
-	void *args = NULL;
-	switch (ps->o.blur_method) {
-	case BLUR_METHOD_BOX:
-		bargs.size = ps->o.blur_radius;
-		args = (void *)&bargs;
-		break;
-	case BLUR_METHOD_KERNEL:
-		kargs.kernel_count = ps->o.blur_kernel_count;
-		kargs.kernels = ps->o.blur_kerns;
-		args = (void *)&kargs;
-		break;
-	case BLUR_METHOD_GAUSSIAN:
-		gargs.size = ps->o.blur_radius;
-		gargs.deviation = ps->o.blur_deviation;
-		args = (void *)&gargs;
-		break;
-	default: return true;
-	}
-
-	ps->backend_blur_context = ps->backend_data->ops->create_blur_context(
-	    ps->backend_data, ps->o.blur_method, args);
-	return ps->backend_blur_context != NULL;
+	module_emit(MODEV_BACKEND_DESTROY_START, ps, NULL);
+	module_emit(MODEV_BACKEND_DESTROY_DONE, ps, NULL);
 }
 
 /// Init the backend and bind all the window pixmap to backend images
 static bool initialize_backend(session_t *ps) {
-	if (ps->o.experimental_backends) {
-		assert(!ps->backend_data);
-		// Reinitialize win_data
-		assert(backend_list[ps->o.backend]);
-		ps->backend_data = backend_list[ps->o.backend]->init(ps);
-		if (!ps->backend_data) {
-			log_fatal("Failed to initialize backend, aborting...");
-			quit(ps);
-			return false;
-		}
-		ps->backend_data->ops = backend_list[ps->o.backend];
+	module_emit(MODEV_BACKEND_CREATE_START, ps, NULL);
+	module_emit(MODEV_BACKEND_CREATE_DONE, ps, NULL);
 
-		if (!initialize_blur(ps)) {
-			log_fatal("Failed to prepare for background blur, aborting...");
-			ps->backend_data->ops->deinit(ps->backend_data);
-			ps->backend_data = NULL;
-			quit(ps);
-			return false;
-		}
-
-		// window_stack shouldn't include window that's
-		// not in the hash table at this point. Since
-		// there cannot be any fading windows.
-		HASH_ITER2(ps->windows, _w) {
-			if (!_w->managed) {
-				continue;
-			}
-			auto w = (struct managed_win *)_w;
-			assert(w->state == WSTATE_MAPPED || w->state == WSTATE_UNMAPPED);
-			if (w->state == WSTATE_MAPPED) {
-				// We need to reacquire image
-				log_debug("Marking window %#010x (%s) for update after "
-				          "redirection",
-				          w->base.id, w->name);
-				if (w->shadow) {
-					struct color c = {
-					    .red = ps->o.shadow_red,
-					    .green = ps->o.shadow_green,
-					    .blue = ps->o.shadow_blue,
-					    .alpha = ps->o.shadow_opacity,
-					};
-					win_bind_shadow(ps->backend_data, w, c,
-					                ps->gaussian_map);
-				}
-
-				w->flags |= WIN_FLAGS_PIXMAP_STALE;
-				ps->pending_updates = true;
-			}
-		}
-	}
-
-	// The old backends binds pixmap lazily, nothing to do here
 	return true;
 }
 
@@ -1201,6 +1092,8 @@ static inline uint8_t session_redirection_mode(session_t *ps) {
  */
 static bool redirect_start(session_t *ps) {
 	assert(!ps->redirected);
+
+	module_emit(MODEV_SCREEN_REDIRECT_START, ps, NULL);
 	log_debug("Redirecting the screen.");
 
 	// Map overlay window. Done firstly according to this:
@@ -1225,6 +1118,8 @@ static bool redirect_start(session_t *ps) {
 	else {
 		ps->ndamage = maximum_buffer_age(ps);
 	}
+#else
+	assert(ps->o.experimental_backends);
 #endif
 	ps->damage_ring = ccalloc(ps->ndamage, region_t);
 	ps->damage = ps->damage_ring + ps->ndamage - 1;
@@ -1246,6 +1141,8 @@ static bool redirect_start(session_t *ps) {
 
 	// Repaint the whole screen
 	force_repaint(ps);
+
+	module_emit(MODEV_SCREEN_REDIRECT_DONE, ps, NULL);
 	log_debug("Screen redirected.");
 	return true;
 }
@@ -1255,6 +1152,8 @@ static bool redirect_start(session_t *ps) {
  */
 static void unredirect(session_t *ps) {
 	assert(ps->redirected);
+
+	module_emit(MODEV_SCREEN_UNREDIRECT_START, ps, NULL);
 	log_debug("Unredirecting the screen.");
 
 	destroy_backend(ps);
@@ -1276,6 +1175,8 @@ static void unredirect(session_t *ps) {
 	x_sync(ps->c);
 
 	ps->redirected = false;
+
+	module_emit(MODEV_SCREEN_UNREDIRECT_DONE, ps, NULL);
 	log_debug("Screen unredirected.");
 }
 
@@ -1565,6 +1466,7 @@ static void exit_enable(EV_P attr_unused, ev_signal *w, int revents attr_unused)
 
 static void config_file_change_cb(void *_ps) {
 	auto ps = (struct session *)_ps;
+	log_info("Config file changed, resetting...");
 	reset_enable(ps->loop, NULL, 0);
 }
 
@@ -1770,6 +1672,31 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	                                                  XCB_XFIXES_MINOR_VERSION)
 	                             .sequence);
 
+#ifndef CONFIG_COMPTONCOMPAT
+	ps->o.experimental_backends = true; // Do this as early as possible, even before modules are loaded.
+#endif
+
+#ifdef CONFIG_MODULES
+	extern modinfo_t modinfo_backend;
+	extern modinfo_t modinfo_blur;
+	extern modinfo_t modinfo_dbus;
+	extern modinfo_t modinfo_fade;
+	extern modinfo_t modinfo_filter;
+	extern modinfo_t modinfo_shadow;
+	extern modinfo_t modinfo_trans;
+
+	// FIXME: For the time being, module load order is important!
+	// At some point, we should implement a priority system
+	// Load "backend" before "blur"
+	ps->module_backend = module_load(ps, &modinfo_backend, NULL);
+	ps->module_dbus = module_load(ps, &modinfo_dbus, NULL);
+	ps->module_trans = module_load(ps, &modinfo_trans, NULL);
+	ps->module_fade = module_load(ps, &modinfo_fade, NULL);
+	ps->module_shadow = module_load(ps, &modinfo_shadow, NULL);
+	ps->module_blur = module_load(ps, &modinfo_blur, NULL);
+	ps->module_filter = module_load(ps, &modinfo_filter, NULL);
+#endif
+
 	// Parse configuration file
 	win_option_mask_t winopt_mask[NUM_WINTYPES] = {{0}};
 	bool shadow_enabled = false, fading_enable = false, hasneg = false;
@@ -1781,28 +1708,16 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 		return NULL;
 	}
 
-#ifdef CONFIG_MODULES
-	extern modinfo_t modinfo_blur;
-	extern modinfo_t modinfo_dbus;
-	extern modinfo_t modinfo_fade;
-	extern modinfo_t modinfo_filter;
-	extern modinfo_t modinfo_shadow;
-	extern modinfo_t modinfo_trans;
-
-	ps->module_dbus = module_load(ps, &modinfo_dbus, NULL);
-	ps->module_trans = module_load(ps, &modinfo_trans, NULL);
-	ps->module_fade = module_load(ps, &modinfo_fade, NULL);
-	ps->module_shadow = module_load(ps, &modinfo_shadow, NULL);
-	ps->module_blur = module_load(ps, &modinfo_blur, NULL);
-	ps->module_filter = module_load(ps, &modinfo_filter, NULL);
-#endif
-
 	// Parse all of the rest command line options
 	if (!get_cfg(&ps->o, argc, argv, shadow_enabled, fading_enable, hasneg, winopt_mask)) {
 		log_fatal("Failed to get configuration, usually mean you have specified "
 		          "invalid options.");
 		return NULL;
 	}
+
+#ifndef CONFIG_COMPTONCOMPAT
+	ps->o.experimental_backends = true; // Do this again, because config file might overwrite
+#endif
 
 	if (ps->o.logpath) {
 		auto l = file_logger_new(ps->o.logpath);
@@ -1845,17 +1760,24 @@ static session_t *session_init(int argc, char **argv, Display *dpy,
 	SET_WM_TYPE_ATOM(DND);
 #undef SET_WM_TYPE_ATOM
 
-	// Get needed atoms for c2 condition lists
-	if (!(c2_list_postprocess(ps, ps->o.unredir_if_possible_blacklist) &&
-	      c2_list_postprocess(ps, ps->o.paint_blacklist) &&
-	      c2_list_postprocess(ps, ps->o.shadow_blacklist) &&
-	      c2_list_postprocess(ps, ps->o.fade_blacklist) &&
-	      c2_list_postprocess(ps, ps->o.blur_background_blacklist) &&
-	      c2_list_postprocess(ps, ps->o.invert_color_list) &&
-	      c2_list_postprocess(ps, ps->o.opacity_rules) &&
-	      c2_list_postprocess(ps, ps->o.focus_blacklist))) {
-		log_error("Post-processing of conditionals failed, some of your rules "
-		          "might not work");
+	c2_lptr_t *blur_background_blacklist = NULL;
+	{
+		blur_background_blacklist = cast(c2_lptr_t *, *module_xgetpointer(ps->module_blur, "background_blacklist"));
+
+		// Get needed atoms for c2 condition lists
+		if (!(c2_list_postprocess(ps, ps->o.unredir_if_possible_blacklist) &&
+		      c2_list_postprocess(ps, ps->o.paint_blacklist) &&
+		      c2_list_postprocess(ps, ps->o.shadow_blacklist) &&
+		      c2_list_postprocess(ps, ps->o.fade_blacklist) &&
+		      c2_list_postprocess(ps, blur_background_blacklist) &&
+		      c2_list_postprocess(ps, ps->o.invert_color_list) &&
+		      c2_list_postprocess(ps, ps->o.opacity_rules) &&
+		      c2_list_postprocess(ps, ps->o.focus_blacklist))) {
+			log_error("Post-processing of conditionals failed, some of your rules "
+			          "might not work");
+		}
+
+		module_xsetpointer(ps->module_blur, "background_blacklist", blur_background_blacklist);
 	}
 
 	ps->gaussian_map = gaussian_kernel_autodetect_deviation(ps->o.shadow_radius);
@@ -2177,7 +2099,12 @@ static void session_destroy(session_t *ps) {
 	free_wincondlst(&ps->o.fade_blacklist);
 	free_wincondlst(&ps->o.focus_blacklist);
 	free_wincondlst(&ps->o.invert_color_list);
-	free_wincondlst(&ps->o.blur_background_blacklist);
+	c2_lptr_t *blur_background_blacklist = NULL;
+	{
+		blur_background_blacklist = (c2_lptr_t *)*module_xgetpointer(ps->module_blur, "background_blacklist");
+		free_wincondlst(&blur_background_blacklist);
+		module_xsetpointer(ps->module_blur, "background_blacklist", blur_background_blacklist);
+	}
 	free_wincondlst(&ps->o.opacity_rules);
 	free_wincondlst(&ps->o.paint_blacklist);
 	free_wincondlst(&ps->o.unredir_if_possible_blacklist);
@@ -2224,10 +2151,6 @@ static void session_destroy(session_t *ps) {
 
 	free(ps->o.write_pid_path);
 	free(ps->o.logpath);
-	for (int i = 0; i < ps->o.blur_kernel_count; ++i) {
-		free(ps->o.blur_kerns[i]);
-	}
-	free(ps->o.blur_kerns);
 	free(ps->o.glx_fshader_win_str);
 	free_xinerama_info(ps);
 

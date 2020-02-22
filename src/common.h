@@ -195,6 +195,15 @@ typedef struct session {
 	paint_t root_tile_paint;
 	/// The backend data the root pixmap bound to
 	void *root_image;
+	/// A hint to backend, the region that will be visible on screen
+	/// backend can optimize based on this info
+	region_t reg_visible;
+	/// The damaged region as determined by X/the window manager
+	region_t reg_damage;
+	/// The adjusted damaged region as determined by us
+	/// This might be bigger than the damage region if we use custom shaders
+	/// It is always bigger if we use blur, since blur is expected to smear out the damage region
+	region_t reg_paint;
 	/// A region of the size of the screen.
 	region_t screen_reg;
 	/// Picture of root window. Destination of painting in no-DBE painting
@@ -370,6 +379,7 @@ typedef struct session {
 	int (*vsync_wait)(session_t *);
 
 	// Built-in modules...
+	module_t *module_backend;
 	module_t *module_dbus;
 	module_t *module_trans;
 	module_t *module_fade;

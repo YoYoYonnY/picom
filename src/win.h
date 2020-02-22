@@ -132,6 +132,8 @@ struct managed_win {
 	region_t bounding_shape;
 	/// Window flags. Definitions above.
 	int_fast16_t flags;
+	region_t reg_bound;
+	region_t reg_paint_in_bound;
 	/// The region of screen that will be obscured when windows above is painted,
 	/// in global coordinates.
 	/// We use this to reduce the pixels that needed to be paint when painting
@@ -242,9 +244,6 @@ struct managed_win {
 	/// Override value of window color inversion state. Set by D-Bus method
 	/// calls.
 	switch_t invert_color_force;
-
-	/// Whether to blur window background.
-	bool blur_background;
 
 #ifdef CONFIG_OPENGL
 	/// Textures and FBO background blur use.

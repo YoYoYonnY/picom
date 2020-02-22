@@ -493,15 +493,11 @@ struct backend_operations glx_ops = {
     .compose = gl_compose,
     .image_op = gl_image_op,
     .copy = gl_copy,
-    .blur = gl_blur,
     .is_image_transparent = gl_is_image_transparent,
     .present = glx_present,
     .buffer_age = glx_buffer_age,
     .render_shadow = default_backend_render_shadow,
     .fill = gl_fill,
-    .create_blur_context = gl_create_blur_context,
-    .destroy_blur_context = gl_destroy_blur_context,
-    .get_blur_size = gl_get_blur_size,
     .max_buffer_age = 5,        // Why?
 };
 

@@ -168,6 +168,7 @@ parse_cfg_condlst_opct(options_t *opt, const config_t *pcfg, const char *name) {
 char *parse_config_libconfig(options_t *opt, const char *config_file, bool *shadow_enable,
                              bool *fading_enable, bool *conv_kern_hasneg,
                              win_option_mask_t *winopt_mask) {
+	session_t *ps = container_of(opt, session_t, o);
 	char *path = NULL;
 	FILE *f;
 	config_t cfg;
@@ -376,7 +377,9 @@ char *parse_config_libconfig(options_t *opt, const char *config_file, bool *shad
 	// --invert-color-include
 	parse_cfg_condlst(&cfg, &opt->invert_color_list, "invert-color-include");
 	// --blur-background-exclude
-	parse_cfg_condlst(&cfg, &opt->blur_background_blacklist, "blur-background-exclude");
+	c2_lptr_t *background_blacklist = cast(c2_lptr_t *, *module_xgetpointer(ps->module_blur, "background_blacklist"));
+	parse_cfg_condlst(&cfg, &background_blacklist, "blur-background-exclude");
+	module_xsetpointer(ps->module_blur, "background_blacklist", background_blacklist);
 	// --opacity-rule
 	parse_cfg_condlst_opct(opt, &cfg, "opacity-rule");
 	// --unredir-if-possible-exclude
@@ -389,30 +392,41 @@ char *parse_config_libconfig(options_t *opt, const char *config_file, bool *shad
 			log_fatal("Invalid blur method %s", sval);
 			goto err;
 		}
-		opt->blur_method = method;
+		module_xsetint(ps->module_blur, "method", method);
 	}
 	// --blur-size
-	config_lookup_int(&cfg, "blur-size", &opt->blur_radius);
+	int blur_radius;
+	config_lookup_int(&cfg, "blur-size", &blur_radius);
+	module_xsetint(ps->module_blur, "radius", blur_radius);
 	// --blur-deviation
-	config_lookup_float(&cfg, "blur-deviation", &opt->blur_deviation);
+	double blur_deviation;
+	config_lookup_float(&cfg, "blur-deviation", &blur_deviation);
+	module_xsetfloat(ps->module_blur, "deviation", blur_deviation);
 	// --blur-background
 	if (config_lookup_bool(&cfg, "blur-background", &ival) && ival) {
-		if (opt->blur_method == BLUR_METHOD_NONE) {
-			opt->blur_method = BLUR_METHOD_KERNEL;
+		if (*module_xgetint(ps->module_blur, "method") == BLUR_METHOD_NONE) {
+			module_xsetint(ps->module_blur, "method", BLUR_METHOD_KERNEL);
 		}
 	}
 	// --blur-background-frame
-	lcfg_lookup_bool(&cfg, "blur-background-frame", &opt->blur_background_frame);
+	bool blur_background_frame;
+	lcfg_lookup_bool(&cfg, "blur-background-frame", &blur_background_frame);
+	module_xsetint(ps->module_blur, "background_frame", blur_background_frame);
 	// --blur-background-fixed
-	lcfg_lookup_bool(&cfg, "blur-background-fixed", &opt->blur_background_fixed);
+	bool blur_background_fixed;
+	lcfg_lookup_bool(&cfg, "blur-background-fixed", &blur_background_fixed);
+	module_xsetint(ps->module_blur, "background_frame", blur_background_fixed);
 	// --blur-kern
 	if (config_lookup_string(&cfg, "blur-kern", &sval)) {
-		opt->blur_kerns =
-		    parse_blur_kern_lst(sval, conv_kern_hasneg, &opt->blur_kernel_count);
-		if (!opt->blur_kerns) {
+		int kernel_count;
+		struct conv **kernels =
+		    parse_blur_kern_lst(sval, conv_kern_hasneg, &kernel_count);
+		if (!kernels) {
 			log_fatal("Cannot parse \"blur-kern\"");
 			goto err;
 		}
+		module_xsetint(ps->module_blur, "kernel_count", kernel_count);
+		module_xsetpointer(ps->module_blur, "kernels", kernels);
 	}
 	// --resize-damage
 	config_lookup_int(&cfg, "resize-damage", &opt->resize_damage);
@@ -493,21 +507,26 @@ char *parse_config_libconfig(options_t *opt, const char *config_file, bool *shad
 			if (method >= BLUR_METHOD_INVALID) {
 				log_warn("Invalid blur method %s, ignoring.", sval);
 			} else {
-				opt->blur_method = method;
+				module_xsetint(ps->module_blur, "method", method);
 			}
 		}
 
-		config_setting_lookup_int(blur_cfg, "size", &opt->blur_radius);
+		config_setting_lookup_int(blur_cfg, "size", &blur_radius);
+		module_xsetint(ps->module_blur, "radius", blur_radius);
 
 		if (config_setting_lookup_string(blur_cfg, "kernel", &sval)) {
-			opt->blur_kerns = parse_blur_kern_lst(sval, conv_kern_hasneg,
-			                                      &opt->blur_kernel_count);
-			if (!opt->blur_kerns) {
+			int kernel_count;
+			struct conv **kernels = parse_blur_kern_lst(sval, conv_kern_hasneg,
+			                                      &kernel_count);
+			if (!kernels) {
 				log_warn("Failed to parse blur kernel: %s", sval);
 			}
+			module_xsetpointer(ps->module_blur, "kernels", kernels);
+			module_xsetint(ps->module_blur, "kernel_count", kernel_count);
 		}
 
-		config_setting_lookup_float(blur_cfg, "deviation", &opt->blur_deviation);
+		config_setting_lookup_float(blur_cfg, "deviation", &blur_deviation);
+		module_xsetfloat(ps->module_blur, "deviation", blur_deviation);
 	}
 
 	// Wintype settings

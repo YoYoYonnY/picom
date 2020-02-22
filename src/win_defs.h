@@ -77,15 +77,15 @@ enum win_flags {
 	// in the code
 
 	/// pixmap is out of date, will be update in win_process_flags
-	WIN_FLAGS_PIXMAP_STALE = 1,
+	WIN_FLAGS_PIXMAP_STALE = 0x01,
 	/// window does not have pixmap bound
-	WIN_FLAGS_PIXMAP_NONE = 2,
+	WIN_FLAGS_PIXMAP_NONE = 0x02,
 	/// there was an error trying to bind the images
-	WIN_FLAGS_IMAGE_ERROR = 4,
+	WIN_FLAGS_IMAGE_ERROR = 0x04,
 	/// shadow is out of date, will be updated in win_process_flags
-	WIN_FLAGS_SHADOW_STALE = 8,
+	WIN_FLAGS_SHADOW_STALE = 0x08,
 	/// shadow has not been generated
-	WIN_FLAGS_SHADOW_NONE = 16,
+	WIN_FLAGS_SHADOW_NONE = 0x10,
 };
 
 static const int_fast16_t WIN_FLAGS_IMAGES_STALE =

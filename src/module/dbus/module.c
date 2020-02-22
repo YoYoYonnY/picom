@@ -4,11 +4,16 @@
 #include "dbus.h"
 #endif
 
-#define OPTIONS(OPTION) \
-	OPTION(bool,              enabled, cfg_type_bool,    false) \
-	OPTION(cdbus_session_t *, session, cfg_type_pointer, NULL)
-
-MODULE_DECLARE_OPTIONS(OPTIONS);
+struct module_options {
+#define OPTION MODULE_DECLARE_OPTION
+#include "cfg_mod.h"
+#undef OPTION
+} options;
+struct module_properties {
+#define OPTION MODULE_DECLARE_PROPERTY
+#include "cfg_mod.h"
+#undef OPTION
+} prop;
 
 // XXX Still deciding on whether having multiple instances of the same module loaded makes sense
 // For now, we just use a single global options struct shared by all instances
@@ -137,7 +142,13 @@ static int load(session_t *ps, module_t *module, void *ud) {
 	UNUSED(ps);
 	UNUSED(ud);
 
-	MODULE_ADD_OPTIONS(OPTIONS);
+	module->options = &options;
+#define OPTION(...) MODULE_ADD_OPTION(prop, &module->cfg_module, &options, __VA_ARGS__)
+#include "cfg_mod.h"
+#undef OPTION
+#define OPTION(...) MODULE_SET_OPTION_DEFAULT(prop, &module->cfg_module, &options, __VA_ARGS__)
+#include "cfg_mod.h"
+#undef OPTION
 
 	module_subscribe(module, MODEV_EARLY_INIT, oninit);
 #ifdef CONFIG_DBUS

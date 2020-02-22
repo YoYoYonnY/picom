@@ -56,14 +56,6 @@ typedef struct win_option {
 	double opacity;
 } win_option_t;
 
-enum blur_method {
-	BLUR_METHOD_NONE = 0,
-	BLUR_METHOD_KERNEL,
-	BLUR_METHOD_BOX,
-	BLUR_METHOD_GAUSSIAN,
-	BLUR_METHOD_INVALID,
-};
-
 typedef struct _c2_lptr c2_lptr_t;
 
 /// Structure representing all options.
@@ -182,24 +174,6 @@ typedef struct options {
 	bool detect_client_opacity;
 
 	// === Other window processing ===
-	/// Blur method for background of semi-transparent windows
-	enum blur_method blur_method;
-	// Size of the blur kernel
-	int blur_radius;
-	// Standard deviation for the gaussian blur
-	double blur_deviation;
-	/// Whether to blur background when the window frame is not opaque.
-	/// Implies blur_background.
-	bool blur_background_frame;
-	/// Whether to use fixed blur strength instead of adjusting according
-	/// to window opacity.
-	bool blur_background_fixed;
-	/// Background blur blacklist. A linked list of conditions.
-	c2_lptr_t *blur_background_blacklist;
-	/// Blur convolution kernel.
-	struct conv **blur_kerns;
-	/// Number of convolution kernels
-	int blur_kernel_count;
 	/// How much to dim an inactive window. 0.0 - 1.0, 0 to disable.
 	double inactive_dim;
 	/// Whether to use fixed inactive dim opacity, instead of deciding

@@ -102,9 +102,6 @@ static inline bool glx_tex_binded(const glx_texture_t *ptex, xcb_pixmap_t pixmap
 
 void glx_set_clip(session_t *ps, const region_t *reg);
 
-bool glx_blur_dst(session_t *ps, int dx, int dy, int width, int height, float z,
-                  GLfloat factor_center, const region_t *reg_tgt, glx_blur_cache_t *pbc);
-
 GLuint glx_create_shader(GLenum shader_type, const char *shader_str);
 
 GLuint glx_create_program(const GLuint *const shaders, int nshaders);

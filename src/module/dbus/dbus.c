@@ -834,7 +834,7 @@ static bool cdbus_process_win_get(cdbus_session_t *session, DBusMessage *msg) {
 
 	cdbus_m_win_get_do(shadow, cdbus_reply_bool);
 	cdbus_m_win_get_do(invert_color, cdbus_reply_bool);
-	cdbus_m_win_get_do(blur_background, cdbus_reply_bool);
+	// cdbus_m_win_get_do(blur_background, cdbus_reply_bool);
 #undef cdbus_m_win_get_do
 
 	log_error(CDBUS_ERROR_BADTGT_S, target);
@@ -1039,9 +1039,9 @@ static bool cdbus_process_opts_get(cdbus_session_t *session, DBusMessage *msg) {
 	cdbus_m_opts_get_do(fade_out_step, cdbus_reply_double);
 	cdbus_m_opts_get_do(no_fading_openclose, cdbus_reply_bool);
 
-	cdbus_m_opts_get_do(blur_method, cdbus_reply_bool);
-	cdbus_m_opts_get_do(blur_background_frame, cdbus_reply_bool);
-	cdbus_m_opts_get_do(blur_background_fixed, cdbus_reply_bool);
+	// cdbus_m_opts_get_do(blur_method, cdbus_reply_bool);
+	// cdbus_m_opts_get_do(blur_background_frame, cdbus_reply_bool);
+	// cdbus_m_opts_get_do(blur_background_fixed, cdbus_reply_bool);
 
 	cdbus_m_opts_get_do(inactive_dim, cdbus_reply_double);
 	cdbus_m_opts_get_do(inactive_dim_fixed, cdbus_reply_bool);

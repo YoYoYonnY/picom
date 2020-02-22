@@ -9,12 +9,14 @@
 #include <xcb/xcb_image.h>
 #include <xcb/xcb_renderutil.h>
 
+#include "../common.h"
 #include "common.h"
 #include "options.h"
 
 #ifdef CONFIG_OPENGL
 #include "backend/gl/glx.h"
 #include "opengl.h"
+#include "../opengl.h"
 #include "compton-compat/common.h"
 
 #ifndef GLX_BACK_BUFFER_AGE_EXT
@@ -680,31 +682,35 @@ win_blur_background(session_t *ps, struct managed_win *w, xcb_render_picture_t t
 	double factor_center = 1.0;
 	// Adjust blur strength according to window opacity, to make it appear
 	// better during fading
-	if (!ps->o.blur_background_fixed) {
+	if (!*module_xgetbool(ps->module_blur, "background_fixed")) {
 		double pct = 1.0 - w->opacity * (1.0 - 1.0 / 9.0);
 		factor_center = pct * 8.0 / (1.1 - pct);
 	}
+
+	int kernel_count = *module_xgetint(ps->module_blur, "kernel_count");
+	auto kerns_cache = ps->blur_kerns_cache;
 
 	switch (ps->o.backend) {
 	case BKEND_XRENDER:
 	case BKEND_XR_GLX_HYBRID: {
 		// Normalize blur kernels
-		for (int i = 0; i < ps->o.blur_kernel_count; i++) {
+		for (int i = 0; i < kernel_count; i++) {
 			// Note: `x * 65536` converts double `x` to a X fixed point
 			// representation. `x / 65536` is the other way.
-			auto kern_src = ps->o.blur_kerns[i];
-			auto kern_dst = ps->blur_kerns_cache[i];
+			struct conv **kernels = cast(struct conv **, *module_xgetpointer(ps->module_blur, "kernels"));
+			auto kern_src = kernels[i];
+			auto kern_dst = kerns_cache[i];
 
 			assert(!kern_dst || (kern_src->w == kern_dst->kernel[0] / 65536 &&
 			                     kern_src->h == kern_dst->kernel[1] / 65536));
 
 			// Skip for fixed factor_center if the cache exists already
-			if (ps->o.blur_background_fixed && kern_dst) {
+			if (*module_xgetbool(ps->module_blur, "background_fixed") && kern_dst) {
 				continue;
 			}
 
 			x_create_convolution_kernel(kern_src, factor_center,
-			                            &ps->blur_kerns_cache[i]);
+			                            &kerns_cache[i]);
 		}
 
 		// Minimize the region we try to blur, if the window itself is not
@@ -720,8 +726,8 @@ win_blur_background(session_t *ps, struct managed_win *w, xcb_render_picture_t t
 		}
 		// Translate global coordinates to local ones
 		pixman_region32_translate(&reg_blur, -x, -y);
-		xr_blur_dst(ps, tgt_buffer, x, y, wid, hei, ps->blur_kerns_cache,
-		            ps->o.blur_kernel_count, &reg_blur);
+		xr_blur_dst(ps, tgt_buffer, x, y, wid, hei, kerns_cache,
+		            kernel_count, &reg_blur);
 		pixman_region32_clear(&reg_blur);
 	} break;
 #ifdef CONFIG_OPENGL
@@ -892,9 +898,9 @@ void paint_all(session_t *ps, struct managed_win *t, bool ignore_damage) {
 		if (pixman_region32_not_empty(&reg_tmp)) {
 			set_tgt_clip(ps, &reg_tmp);
 			// Blur window background
-			if (w->blur_background &&
+			if (/* w->blur_background */ true && // FIXME, for now, enable blur for all windows
 			    (w->mode == WMODE_TRANS ||
-			     (ps->o.blur_background_frame && w->mode == WMODE_FRAME_TRANS) ||
+			     (*module_xgetbool(ps->module_blur, "background_frame") && w->mode == WMODE_FRAME_TRANS) ||
 			     ps->o.force_win_blend))
 				win_blur_background(ps, w, ps->tgt_buffer.pict, &reg_tmp);
 
@@ -1108,15 +1114,18 @@ bool init_render(session_t *ps) {
 	}
 
 	// Blur filter
-	if (ps->o.blur_method && ps->o.blur_method != BLUR_METHOD_KERNEL) {
+	enum blur_method blur_method = *module_xgetint(ps->module_blur, "method");
+	if (blur_method && blur_method != BLUR_METHOD_KERNEL) {
 		log_warn("Old backends only support blur method \"kernel\". Your blur "
 		         "setting will not be applied");
-		ps->o.blur_method = BLUR_METHOD_NONE;
+		blur_method = BLUR_METHOD_NONE;
 	}
 
-	if (ps->o.blur_method == BLUR_METHOD_KERNEL) {
+	int blur_kernel_count = *module_xgetint(ps->module_blur, "kernel_count");
+
+	if (blur_method == BLUR_METHOD_KERNEL) {
 		ps->blur_kerns_cache =
-		    ccalloc(ps->o.blur_kernel_count, struct x_convolution_kernel *);
+		    ccalloc(blur_kernel_count, struct x_convolution_kernel *);
 
 		bool ret = false;
 		if (ps->o.backend == BKEND_GLX) {
@@ -1182,8 +1191,12 @@ void deinit_render(session_t *ps) {
 	}
 #endif
 
-	if (ps->o.blur_method != BLUR_METHOD_NONE) {
-		for (int i = 0; i < ps->o.blur_kernel_count; i++) {
+	enum blur_method blur_method = *module_xgetint(ps->module_blur, "method");
+
+	int blur_kernel_count = *module_xgetint(ps->module_blur, "kernel_count");
+
+	if (blur_method != BLUR_METHOD_NONE) {
+		for (int i = 0; i < blur_kernel_count; i++) {
 			free(ps->blur_kerns_cache[i]);
 		}
 		free(ps->blur_kerns_cache);

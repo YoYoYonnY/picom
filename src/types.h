@@ -20,6 +20,14 @@ typedef enum {
 	UNSET
 } switch_t;
 
+enum blur_method {
+	BLUR_METHOD_NONE = 0,
+	BLUR_METHOD_KERNEL,
+	BLUR_METHOD_BOX,
+	BLUR_METHOD_GAUSSIAN,
+	BLUR_METHOD_INVALID,
+};
+
 /// A structure representing margins around a rectangle.
 typedef struct {
 	int top;

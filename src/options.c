@@ -504,6 +504,7 @@ bool get_early_config(int argc, char *const *argv, char **config_file, bool *all
  */
 bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
              bool fading_enable, bool conv_kern_hasneg, win_option_mask_t *winopt_mask) {
+	session_t *ps = container_of(opt, session_t, o);
 
 	int o = 0, longopt_idx = -1;
 
@@ -674,18 +675,18 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 		P_CASEBOOL(282, detect_client_leader);
 		case 283:
 			// --blur_background
-			opt->blur_method = BLUR_METHOD_KERNEL;
+			module_xsetint(ps->module_blur, "method", BLUR_METHOD_KERNEL);
 			break;
-		P_CASEBOOL(284, blur_background_frame);
-		P_CASEBOOL(285, blur_background_fixed);
+		case 284:
+			// --blur_background_frame
+			module_xsetint(ps->module_blur, "background_frame", true);
+			break;
+		case 285:
+			// --blur_background_fixed
+			module_xsetint(ps->module_blur, "background_fixed", true);
+			break;
 		case 286:
-			{
-				module_t *module = container_of(opt, session_t, o)->module_dbus;
-				pedantic_assert(module);
-				cfg_prop_t prop = cfg_getprop(&module->cfg_module, "enabled");
-				pedantic_assert(prop != -1);
-				cfg_setbool(&module->cfg_module, module->options, prop, true);
-			}
+			module_xsetint(ps->module_blur, "enabled", true);
 			break;
 		case 287:
 			log_warn("Please use --log-file instead of --logpath");
@@ -725,7 +726,11 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 			break;
 		case 296:
 			// --blur-background-exclude
-			condlst_add(&opt->blur_background_blacklist, optarg);
+			{
+				c2_lptr_t *pointer = cast(c2_lptr_t *, *module_xgetpointer(ps->module_blur, "background_blacklist"));
+				condlst_add(&pointer, optarg);
+				module_xsetpointer(ps->module_blur, "background_blacklist", pointer);
+			}
 			break;
 		case 297:
 			// --active-opacity
@@ -760,10 +765,21 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 			break;
 		case 301:
 			// --blur-kern
-			opt->blur_kerns = parse_blur_kern_lst(optarg, &conv_kern_hasneg,
-			                                      &opt->blur_kernel_count);
-			if (!opt->blur_kerns) {
-				exit(1);
+			{
+				module_t *module = container_of(opt, session_t, o)->module_blur;
+				pedantic_assert(module);
+				cfg_prop_t prop = cfg_getprop(&module->cfg_module, "kernels");
+				pedantic_assert(prop != -1);
+				cfg_prop_t countprop = cfg_getprop(&module->cfg_module, "kernel_count");
+				pedantic_assert(countprop != -1);
+				int kernel_count = 0;
+				auto kernels = parse_blur_kern_lst(optarg, &conv_kern_hasneg,
+				                                      &kernel_count);
+				if (!kernels) {
+					exit(1);
+				}
+				cfg_setpointer(&module->cfg_module, module->options, prop, kernels);
+				cfg_setint(&module->cfg_module, module->options, countprop, kernel_count);
 			}
 			break;
 		P_CASEINT(302, resize_damage);
@@ -838,17 +854,17 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 			if (method >= BLUR_METHOD_INVALID) {
 				log_warn("Invalid blur method %s, ignoring.", optarg);
 			} else {
-				opt->blur_method = method;
+				module_xsetint(ps->module_blur, "blur_method", method);
 			}
 			break;
 		}
 		case 329:
 			// --blur-size
-			opt->blur_radius = atoi(optarg);
+			module_xsetint(ps->module_blur, "radius", atoi(optarg));
 			break;
 		case 330:
 			// --blur-deviation
-			opt->blur_deviation = atof(optarg);
+			module_xsetfloat(ps->module_blur, "deviation", atof(optarg));
 			break;
 
 		P_CASEBOOL(733, experimental_backends);
@@ -861,10 +877,6 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 		}
 		// clang-format on
 	}
-
-#ifndef CONFIG_COMPTONCOMPAT
-	opt->experimental_backends = true;
-#endif
 
 	// Restore LC_NUMERIC
 	setlocale(LC_NUMERIC, lc_numeric_old);
@@ -923,8 +935,8 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 	set_default_winopts(opt, winopt_mask, shadow_enable, fading_enable);
 
 	// --blur-background-frame implies --blur-background
-	if (opt->blur_background_frame && opt->blur_method == BLUR_METHOD_NONE) {
-		opt->blur_method = BLUR_METHOD_KERNEL;
+	if (*module_xgetbool(ps->module_blur, "background_frame") && *module_xgetint(ps->module_blur, "method") == BLUR_METHOD_NONE) {
+		module_xsetint(ps->module_blur, "blur_method", BLUR_METHOD_KERNEL);
 	}
 
 	// Other variables determined by options
@@ -935,12 +947,14 @@ bool get_cfg(options_t *opt, int argc, char *const *argv, bool shadow_enable,
 	}
 
 	// Fill default blur kernel
-	if (opt->blur_method == BLUR_METHOD_KERNEL &&
-	    (!opt->blur_kerns || !opt->blur_kerns[0])) {
-		opt->blur_kerns = parse_blur_kern_lst("3x3box", &conv_kern_hasneg,
-		                                      &opt->blur_kernel_count);
-		CHECK(opt->blur_kerns);
-		CHECK(opt->blur_kernel_count);
+	if (*module_xgetint(ps->module_blur, "method") == BLUR_METHOD_KERNEL &&
+	    (!*module_xgetpointer(ps->module_blur, "kernels") || !cast(struct conv **, *module_xgetpointer(ps->module_blur, "kernels"))[0])) {
+	    	int kernel_count;
+		struct conv **kernels = parse_blur_kern_lst("3x3box", &conv_kern_hasneg,
+		                                      &kernel_count);
+		module_xsetpointer(ps->module_blur, "kernels", kernels);
+		CHECK(kernels);
+		CHECK(kernel_count);
 	}
 
 	if (opt->resize_damage < 0) {

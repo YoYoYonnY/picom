@@ -10,6 +10,8 @@ DEFINE_BASICTYPES(DEFINE_BASICTYPE)
 void cfg_init(cfg_t *self)
 {
 	self->items = NULL;
+	self->min_start = 0;
+	self->max_end = 0;
 }
 void cfg_fini(cfg_t *self)
 {
@@ -37,15 +39,24 @@ cfg_prop_t cfg_addprop(cfg_t *self, const char *key, const cfg_type_t *type, int
 		}
 	}
 	if (offset == INT_MIN) return -1;
+	assert(type);
 	self->items = crealloc(self->items, idx + 2);
 	self->items[idx].name = key;
 	self->items[idx].type = type;
 	self->items[idx].offset = offset;
 	self->items[idx+1].name = NULL;
+	if (offset < self->min_start) self->min_start = offset;
+	int size = unsigned_to_int_checked(cfg_typesize(type->repr));
+	if (offset + size > self->max_end) self->max_end = offset + size;
 	return idx;
 }
 cfg_item_t *cfg_getpropitem(const cfg_t *self, cfg_prop_t prop)
 {
+#ifndef NDEBUG
+	int nitems = 0;
+	for (struct cfg_item *item = self->items; item && item->name; item++, nitems++);
+	assert(prop >= 0 && prop < nitems);
+#endif
 	return &self->items[prop];
 }
 

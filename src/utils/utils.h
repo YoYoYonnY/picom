@@ -85,6 +85,8 @@ safe_isnan(double a) {
 // Also useful for documenting intent
 #define pedantic_assert(expr) assert(expr)
 
+#define cast(T, e) ((T)(e))
+
 // Some macros for checked cast
 // Note these macros are not complete, as in, they won't work for every integer types. But
 // they are good enough for our use cases.

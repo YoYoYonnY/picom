@@ -1,1 +1,1 @@
-srcs += [ files('render.c') ]
+srcs += [ files('render.c', 'opengl.c') ]

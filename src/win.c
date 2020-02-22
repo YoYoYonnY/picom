@@ -52,7 +52,7 @@ struct managed_win_internal {
 	size_t reserved_windata;
 
 	/// Additional window data allocated by modules (variable size)
-	char windata[1];
+	char windata[];
 };
 
 #define OPAQUE (0xffffffff)
@@ -866,31 +866,6 @@ void win_set_shadow_force(session_t *ps, struct managed_win *w, switch_t val) {
 	}
 }
 
-static void
-win_set_blur_background(session_t *ps, struct managed_win *w, bool blur_background_new) {
-	if (w->blur_background == blur_background_new)
-		return;
-
-	w->blur_background = blur_background_new;
-
-	// This damage might not be absolutely necessary (e.g. when the window is opaque),
-	// but blur_background changes should be rare, so this should be fine.
-	add_damage_from_win(ps, w);
-}
-
-/**
- * Determine if a window should have background blurred.
- */
-static void win_determine_blur_background(session_t *ps, struct managed_win *w) {
-	if (w->a.map_state != XCB_MAP_STATE_VIEWABLE)
-		return;
-
-	bool blur_background_new =
-	    ps->o.blur_method && !c2_match(ps, w, ps->o.blur_background_blacklist, NULL);
-
-	win_set_blur_background(ps, w, blur_background_new);
-}
-
 /**
  * Update window opacity according to opacity rules.
  */
@@ -935,8 +910,6 @@ void win_on_factor_change(session_t *ps, struct managed_win *w) {
 		win_determine_invert_color(ps, w);
 	if (ps->o.focus_blacklist)
 		win_update_focused(ps, w);
-	if (ps->o.blur_background_blacklist)
-		win_determine_blur_background(ps, w);
 	if (ps->o.opacity_rules)
 		win_update_opacity_rule(ps, w);
 	if (w->a.map_state == XCB_MAP_STATE_VIEWABLE && ps->o.paint_blacklist)
@@ -1187,7 +1160,6 @@ struct win *fill_win(session_t *ps, struct win *w) {
 	    .frame_opacity = 1.0,
 	    .dim = false,
 	    .invert_color = false,
-	    .blur_background = false,
 	    .reg_ignore = NULL,
 	    // The following ones are updated for other reasons
 	    .pixmap_damaged = false,          // updated by damage events
@@ -2127,8 +2099,6 @@ void map_win_start(session_t *ps, struct managed_win *w) {
 
 	log_debug("Window %#010x has opacity %f, opacity target is %f", w->base.id,
 	          w->opacity, w->opacity_target);
-
-	win_determine_blur_background(ps, w);
 
 	// Cannot set w->ever_damaged = false here, since window mapping could be
 	// delayed, so a damage event might have already arrived before this function

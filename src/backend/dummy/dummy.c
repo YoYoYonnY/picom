@@ -67,12 +67,6 @@ void dummy_fill(struct backend_base *backend_data attr_unused, struct color c at
                 const region_t *clip attr_unused) {
 }
 
-bool dummy_blur(struct backend_base *backend_data attr_unused, double opacity attr_unused,
-                void *blur_ctx attr_unused, const region_t *reg_blur attr_unused,
-                const region_t *reg_visible attr_unused) {
-	return true;
-}
-
 void *dummy_bind_pixmap(struct backend_base *base, xcb_pixmap_t pixmap,
                         struct xvisual_info fmt, bool owned attr_unused) {
 	auto dummy = (struct dummy_data *)base;
@@ -130,28 +124,11 @@ void *dummy_image_copy(struct backend_base *base, const void *image,
 	return (void *)img;
 }
 
-void *dummy_create_blur_context(struct backend_base *base attr_unused,
-                                enum blur_method method attr_unused, void *args attr_unused) {
-	static int dummy_context;
-	return &dummy_context;
-}
-
-void dummy_destroy_blur_context(struct backend_base *base attr_unused, void *ctx attr_unused) {
-}
-
-void dummy_get_blur_size(void *ctx attr_unused, int *width, int *height) {
-	// These numbers are arbitrary, to make sure the reisze_region code path is
-	// covered.
-	*width = 5;
-	*height = 5;
-}
-
 struct backend_operations dummy_ops = {
     .init = dummy_init,
     .deinit = dummy_deinit,
     .compose = dummy_compose,
     .fill = dummy_fill,
-    .blur = dummy_blur,
     .bind_pixmap = dummy_bind_pixmap,
     .render_shadow = default_backend_render_shadow,
     .release_image = dummy_release_image,
@@ -161,8 +138,4 @@ struct backend_operations dummy_ops = {
 
     .image_op = dummy_image_op,
     .copy = dummy_image_copy,
-    .create_blur_context = dummy_create_blur_context,
-    .destroy_blur_context = dummy_destroy_blur_context,
-    .get_blur_size = dummy_get_blur_size,
-
 };

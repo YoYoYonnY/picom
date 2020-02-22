@@ -4,6 +4,8 @@
 // Throw everything in here.
 // !!! DON'T !!!
 
+#pragma once
+
 // === Includes ===
 
 #include <locale.h>

@@ -5,17 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <xcb/composite.h>
-#include <xcb/present.h>
-#include <xcb/render.h>
-#include <xcb/sync.h>
-#include <xcb/xcb.h>
-
 #include "utils/kernel.h"
 #include "utils/utils.h"
 
-#include "backend/backend.h"
 #include "backend/backend_common.h"
+#include "backend/xrender/xrender.h"
 #include "common.h"
 #include "picom.h"
 #include "config.h"
@@ -24,56 +18,6 @@
 #include "win.h"
 #include "x.h"
 #include "types.h"
-
-typedef struct _xrender_data {
-	backend_t base;
-	/// If vsync is enabled and supported by the current system
-	bool vsync;
-	xcb_visualid_t default_visual;
-	/// Target window
-	xcb_window_t target_win;
-	/// Painting target, it is either the root or the overlay
-	xcb_render_picture_t target;
-	/// Back buffers. Double buffer, with 1 for temporary render use
-	xcb_render_picture_t back[3];
-	/// The back buffer that is for temporary use
-	/// Age of each back buffer.
-	int buffer_age[3];
-	/// The back buffer we should be painting into
-	int curr_back;
-	/// The corresponding pixmap to the back buffer
-	xcb_pixmap_t back_pixmap[3];
-	/// The original root window content, usually the wallpaper.
-	/// We save it so we don't loss the wallpaper when we paint over
-	/// it.
-	xcb_render_picture_t root_pict;
-	/// Pictures of pixel of different alpha value, used as a mask to
-	/// paint transparent images
-	xcb_render_picture_t alpha_pict[256];
-
-	// XXX don't know if these are really needed
-
-	/// 1x1 white picture
-	xcb_render_picture_t white_pixel;
-	/// 1x1 black picture
-	xcb_render_picture_t black_pixel;
-
-	/// Width and height of the target pixmap
-	int target_width, target_height;
-
-	xcb_special_event_t *present_event;
-} xrender_data;
-
-struct _xrender_blur_context {
-	enum blur_method method;
-	/// Blur kernels converted to X format
-	struct x_convolution_kernel **x_blur_kernel;
-
-	int resize_width, resize_height;
-
-	/// Number of blur kernels
-	int x_blur_kernel_count;
-};
 
 struct _xrender_image_data {
 	// Pixmap that the client window draws to,
@@ -128,124 +72,6 @@ static void fill(backend_t *base, struct color c, const region_t *clip) {
 	                         .y = to_i16_checked(extent->y1),
 	                         .width = to_u16_checked(extent->x2 - extent->x1),
 	                         .height = to_u16_checked(extent->y2 - extent->y1)}});
-}
-
-static bool blur(backend_t *backend_data, double opacity, void *ctx_,
-                 const region_t *reg_blur, const region_t *reg_visible) {
-	assert(opacity >= 0.0 && opacity <= 1.0);
-
-	struct _xrender_blur_context *bctx = ctx_;
-	if (bctx->method == BLUR_METHOD_NONE) {
-		return true;
-	}
-
-	struct _xrender_data *xd = (void *)backend_data;
-	xcb_connection_t *c = xd->base.c;
-	region_t reg_op;
-	pixman_region32_init(&reg_op);
-	pixman_region32_intersect(&reg_op, (region_t *)reg_blur, (region_t *)reg_visible);
-	if (!pixman_region32_not_empty(&reg_op)) {
-		pixman_region32_fini(&reg_op);
-		return true;
-	}
-
-	region_t reg_op_resized =
-	    resize_region(&reg_op, bctx->resize_width, bctx->resize_height);
-
-	const pixman_box32_t *extent_resized = pixman_region32_extents(&reg_op_resized);
-	const auto height_resized = to_u16_checked(extent_resized->y2 - extent_resized->y1);
-	const auto width_resized = to_u16_checked(extent_resized->x2 - extent_resized->x1);
-	static const char *filter0 = "Nearest";        // The "null" filter
-	static const char *filter = "convolution";
-
-	// Create a buffer for storing blurred picture, make it just big enough
-	// for the blur region
-	xcb_render_picture_t tmp_picture[2] = {
-	    x_create_picture_with_visual(xd->base.c, xd->base.root, width_resized,
-	                                 height_resized, xd->default_visual, 0, NULL),
-	    x_create_picture_with_visual(xd->base.c, xd->base.root, width_resized,
-	                                 height_resized, xd->default_visual, 0, NULL)};
-
-	if (!tmp_picture[0] || !tmp_picture[1]) {
-		log_error("Failed to build intermediate Picture.");
-		pixman_region32_fini(&reg_op);
-		return false;
-	}
-
-	region_t clip;
-	pixman_region32_init(&clip);
-	pixman_region32_copy(&clip, &reg_op_resized);
-	pixman_region32_translate(&clip, -extent_resized->x1, -extent_resized->y1);
-	x_set_picture_clip_region(c, tmp_picture[0], 0, 0, &clip);
-	x_set_picture_clip_region(c, tmp_picture[1], 0, 0, &clip);
-	pixman_region32_fini(&clip);
-
-	xcb_render_picture_t src_pict = xd->back[2], dst_pict = tmp_picture[0];
-	auto alpha_pict = xd->alpha_pict[(int)(opacity * MAX_ALPHA)];
-	int current = 0;
-	x_set_picture_clip_region(c, src_pict, 0, 0, &reg_op_resized);
-
-	// For more than 1 pass, we do:
-	//   back -(pass 1)-> tmp0 -(pass 2)-> tmp1 ...
-	//   -(pass n-1)-> tmp0 or tmp1 -(pass n)-> back
-	// For 1 pass, we do
-	//   back -(pass 1)-> tmp0 -(copy)-> target_buffer
-	int i;
-	for (i = 0; i < bctx->x_blur_kernel_count; i++) {
-		// Copy from source picture to destination. The filter must
-		// be applied on source picture, to get the nearby pixels outside the
-		// window.
-		xcb_render_set_picture_filter(c, src_pict, to_u16_checked(strlen(filter)),
-		                              filter,
-		                              to_u32_checked(bctx->x_blur_kernel[i]->size),
-		                              bctx->x_blur_kernel[i]->kernel);
-
-		if (i == 0) {
-			// First pass, back buffer -> tmp picture
-			// (we do this even if this is also the last pass, because we
-			// cannot do back buffer -> back buffer)
-			xcb_render_composite(c, XCB_RENDER_PICT_OP_SRC, src_pict, XCB_NONE,
-			                     dst_pict, to_i16_checked(extent_resized->x1),
-			                     to_i16_checked(extent_resized->y1), 0, 0, 0,
-			                     0, width_resized, height_resized);
-		} else if (i < bctx->x_blur_kernel_count - 1) {
-			// This is not the last pass or the first pass,
-			// tmp picture 1 -> tmp picture 2
-			xcb_render_composite(c, XCB_RENDER_PICT_OP_SRC, src_pict,
-			                     XCB_NONE, dst_pict, 0, 0, 0, 0, 0, 0,
-			                     width_resized, height_resized);
-		} else {
-			x_set_picture_clip_region(c, xd->back[2], 0, 0, &reg_op);
-			// This is the last pass, and we are doing more than 1 pass
-			xcb_render_composite(c, XCB_RENDER_PICT_OP_OVER, src_pict,
-			                     alpha_pict, xd->back[2], 0, 0, 0, 0,
-			                     to_i16_checked(extent_resized->x1),
-			                     to_i16_checked(extent_resized->y1),
-			                     width_resized, height_resized);
-		}
-
-		// reset filter
-		xcb_render_set_picture_filter(
-		    c, src_pict, to_u16_checked(strlen(filter0)), filter0, 0, NULL);
-
-		src_pict = tmp_picture[current];
-		dst_pict = tmp_picture[!current];
-		current = !current;
-	}
-
-	// There is only 1 pass
-	if (i == 1) {
-		x_set_picture_clip_region(c, xd->back[2], 0, 0, &reg_op);
-		xcb_render_composite(
-		    c, XCB_RENDER_PICT_OP_OVER, src_pict, alpha_pict, xd->back[2], 0, 0,
-		    0, 0, to_i16_checked(extent_resized->x1),
-		    to_i16_checked(extent_resized->y1), width_resized, height_resized);
-	}
-
-	xcb_render_free_picture(c, tmp_picture[0]);
-	xcb_render_free_picture(c, tmp_picture[1]);
-	pixman_region32_fini(&reg_op);
-	return true;
 }
 
 static void *
@@ -502,58 +328,6 @@ static void *copy(backend_t *base, const void *image, const region_t *reg) {
 	return new_img;
 }
 
-void *create_blur_context(backend_t *base attr_unused, enum blur_method method, void *args) {
-	auto ret = ccalloc(1, struct _xrender_blur_context);
-	if (!method || method >= BLUR_METHOD_INVALID) {
-		ret->method = BLUR_METHOD_NONE;
-		return ret;
-	}
-
-	ret->method = BLUR_METHOD_KERNEL;
-	struct conv **kernels;
-	int kernel_count;
-	if (method == BLUR_METHOD_KERNEL) {
-		kernels = ((struct kernel_blur_args *)args)->kernels;
-		kernel_count = ((struct kernel_blur_args *)args)->kernel_count;
-	} else {
-		kernels = generate_blur_kernel(method, args, &kernel_count);
-	}
-
-	ret->x_blur_kernel = ccalloc(kernel_count, struct x_convolution_kernel *);
-	for (int i = 0; i < kernel_count; i++) {
-		int center = kernels[i]->h * kernels[i]->w / 2;
-		x_create_convolution_kernel(kernels[i], kernels[i]->data[center],
-		                            &ret->x_blur_kernel[i]);
-		ret->resize_width += kernels[i]->w / 2;
-		ret->resize_height += kernels[i]->h / 2;
-	}
-	ret->x_blur_kernel_count = kernel_count;
-
-	if (method != BLUR_METHOD_KERNEL) {
-		// Kernels generated by generate_blur_kernel, so we need to free them.
-		for (int i = 0; i < kernel_count; i++) {
-			free(kernels[i]);
-		}
-		free(kernels);
-	}
-	return ret;
-}
-
-void destroy_blur_context(backend_t *base attr_unused, void *ctx_) {
-	struct _xrender_blur_context *ctx = ctx_;
-	for (int i = 0; i < ctx->x_blur_kernel_count; i++) {
-		free(ctx->x_blur_kernel[i]);
-	}
-	free(ctx->x_blur_kernel);
-	free(ctx);
-}
-
-void get_blur_size(void *blur_context, int *width, int *height) {
-	struct _xrender_blur_context *ctx = blur_context;
-	*width = ctx->resize_width;
-	*height = ctx->resize_height;
-}
-
 backend_t *backend_xrender_init(session_t *ps) {
 	auto xd = ccalloc(1, struct _xrender_data);
 	init_backend_base(&xd->base, ps);
@@ -640,7 +414,6 @@ err:
 struct backend_operations xrender_ops = {
     .init = backend_xrender_init,
     .deinit = deinit,
-    .blur = blur,
     .present = present,
     .compose = compose,
     .fill = fill,
@@ -655,9 +428,6 @@ struct backend_operations xrender_ops = {
 
     .image_op = image_op,
     .copy = copy,
-    .create_blur_context = create_blur_context,
-    .destroy_blur_context = destroy_blur_context,
-    .get_blur_size = get_blur_size,
 };
 
 // vim: set noet sw=8 ts=8:
