@@ -2,7 +2,7 @@
 // Copyright (c) 2018 Yuxuan Shui <yshuiv7@gmail.com>
 
 #pragma once
-#include <assert.h>
+#include "picom_assert.h"
 #include <stdio.h>
 
 #include "utils/compiler.h"

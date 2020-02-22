@@ -8,6 +8,7 @@ option('opengl', type: 'boolean', value: true, description: 'Enable features tha
 option('dbus', type: 'boolean', value: true, description: 'Enable support for D-Bus remote control')
 option('compton_compat', type: 'boolean', value: true, description: 'Enable compton compatability')
 option('modules', type: 'boolean', value: true, description: 'Enable compositing module support')
+option('stacktraces', type: 'boolean', value: false, description: 'Enable runtime stacktraces for warnings and errors')
 
 option('xrescheck', type: 'boolean', value: false, description: 'Enable X resource leak checker (for debug only)')
 

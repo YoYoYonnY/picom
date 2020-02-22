@@ -39,6 +39,15 @@ endif
 
 deps = []
 
+if get_option('stacktraces') and get_option('buildtype') != 'release'
+	libbacktrace = cc.find_library('backtrace', required: false)
+	if libbacktrace.found()
+		deps += libbacktrace
+		cflags += ['-DCONFIG_STACKTRACES']
+	endif
+	srcs += ['stacktrace.c']
+endif
+
 if get_option('config_file')
 	deps += [dependency('libconfig', version: '>=1.4', required: true),
 	         dependency('libxdg-basedir', required: true)]

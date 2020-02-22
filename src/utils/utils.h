@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2018 Yuxuan Shui <yshuiv7@gmail.com>
 #pragma once
-#include <assert.h>
+#include "picom_assert.h"
 #include <ctype.h>
 #include <limits.h>
 #include <math.h>

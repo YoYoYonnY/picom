@@ -2329,6 +2329,10 @@ int main(int argc, char **argv) {
 	// correctly
 	setlocale(LC_ALL, "");
 
+#ifdef CONFIG_STACKTRACES
+	initialize_stacktraces();
+#endif
+
 	// Initialize logging system for early logging
 	log_init_tls();
 

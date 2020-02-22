@@ -11,7 +11,7 @@
  */
 
 #include <X11/Xlib-xcb.h>
-#include <assert.h>
+#include "picom_assert.h"
 #include <limits.h>
 #include <pixman.h>
 #include <stdbool.h>

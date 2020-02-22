@@ -28,7 +28,7 @@
 // === Includes ===
 
 // For some special functions
-#include <assert.h>
+#include "picom_assert.h"
 #include <stdbool.h>
 #include <sys/time.h>
 #include <time.h>

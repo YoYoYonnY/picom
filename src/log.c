@@ -1,4 +1,4 @@
-#include <assert.h>
+#include "picom_assert.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -14,35 +14,16 @@
 #include "backend/gl/gl_common.h"
 #endif
 
+#ifdef CONFIG_STACKTRACES
+#include "stacktrace.h"
+#endif
+
 #include "utils/compiler.h"
 #include "utils/utils.h"
 
-#include "log.h"
+#include "log-internal.h"
 
 thread_local struct log *tls_logger;
-
-struct log_target;
-
-struct log {
-	struct log_target *head;
-
-	int log_level;
-};
-
-struct log_target {
-	const struct log_ops *ops;
-	struct log_target *next;
-};
-
-struct log_ops {
-	void (*write)(struct log_target *, const char *, size_t);
-	void (*writev)(struct log_target *, const struct iovec *, int vcnt);
-	void (*destroy)(struct log_target *);
-
-	/// Additional strings to print around the log_level string
-	const char *(*colorize_begin)(enum log_level);
-	const char *(*colorize_end)(enum log_level);
-};
 
 /// Fallback writev for targets don't implement it
 static attr_unused void
@@ -205,6 +186,16 @@ attr_printf(4, 5) void log_printf(struct log *l, int level, const char *func,
 		                     {.iov_base = buf, .iov_len = (size_t)blen},
 		                     {.iov_base = "\n", .iov_len = 1}},
 		    11);
+#ifdef CONFIG_STACKTRACES
+		if (level >= LOG_LEVEL_ERROR) {
+			struct stacktrace_data stacktrace_data = {
+				.depth = 0,
+				.target = head,
+				.fd = -1
+			};
+			print_stacktrace(&stacktrace_data);
+		}
+#endif
 		head = head->next;
 	}
 	free(time);
